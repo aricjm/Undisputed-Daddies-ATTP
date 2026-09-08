@@ -153,6 +153,7 @@ function renderParlayTab(data) {
     const card = document.createElement('div');
     const pick = member.pick;
     const hasPicked = member.hasPicked;
+    const memberImg = member.image || `/images/${member.id}.png`;
 
     if (hasPicked) {
       const isScored = pick.hasScored;
@@ -160,7 +161,7 @@ function renderParlayTab(data) {
       card.innerHTML = `
         <div class="leg-card-left">
           <div class="member-avatar ${member.isAdmin ? 'admin' : ''}">
-            ${member.name.slice(0, 2).toUpperCase()}
+            <img src="${memberImg}" alt="${member.name}" class="member-avatar-img" onerror="this.onerror=null; this.src='/images/${member.id}.png';">
           </div>
           <div class="member-info">
             <div class="member-name">
@@ -190,7 +191,7 @@ function renderParlayTab(data) {
       card.innerHTML = `
         <div class="leg-card-left">
           <div class="member-avatar ${member.isAdmin ? 'admin' : ''}">
-            ${member.name.slice(0, 2).toUpperCase()}
+            <img src="${memberImg}" alt="${member.name}" class="member-avatar-img" onerror="this.onerror=null; this.src='/images/${member.id}.png';">
           </div>
           <div class="member-info">
             <div class="member-name">
@@ -363,9 +364,11 @@ function openPickModalForPlayer(playerId) {
 
   leagueMembers.forEach(m => {
     const alreadyPicked = pickedMemberIds.has(m.id);
+    const memberImg = m.image || `/images/${m.id}.png`;
     const option = document.createElement('div');
     option.className = `member-select-option ${alreadyPicked ? 'disabled' : ''} ${selectedMemberForPick === m.id && !alreadyPicked ? 'selected' : ''}`;
     option.innerHTML = `
+      <img src="${memberImg}" class="member-modal-avatar-img" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
       <div style="font-weight:700; color:${alreadyPicked ? '#64748b' : '#fff'}; font-size:13px; display:flex; align-items:center; gap:4px;">
         ${m.name} ${m.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
       </div>
@@ -561,6 +564,7 @@ function renderStatsTab(data) {
     const rank = index + 1;
     const card = document.createElement('div');
     card.className = 'member-stat-card';
+    const memberImg = item.member.image || `/images/${item.member.id}.png`;
     
     // History list preview
     const historyHtml = (item.history || []).map(h => `
@@ -577,6 +581,7 @@ function renderStatsTab(data) {
       <div class="stat-card-header">
         <div class="stat-card-user">
           <span class="rank-badge ${rank <= 3 ? `top-${rank}` : ''}">#${rank}</span>
+          <img src="${memberImg}" class="member-stat-avatar-img" alt="${item.member.name}" onerror="this.onerror=null; this.src='/images/${item.member.id}.png';">
           <div class="stat-user-name" style="display:flex; align-items:center; gap:6px;">
             ${item.member.name} ${item.member.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
           </div>

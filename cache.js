@@ -7,16 +7,16 @@ const nflCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 const appStateCache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
 
 const LEAGUE_MEMBERS = [
-  { id: 'aric', name: 'Aric', isAdmin: true },
-  { id: 'cisco', name: 'Cisco', isAdmin: false },
-  { id: 'wood', name: 'Wood', isAdmin: false },
-  { id: 'jess', name: 'Jess', isAdmin: false },
-  { id: 'bubba', name: 'Bubba', isAdmin: false },
-  { id: 'nate', name: 'Nate', isAdmin: false },
-  { id: 'grady', name: 'Grady', isAdmin: false },
-  { id: 'weddick', name: 'Weddick', isAdmin: false },
-  { id: 'swehla', name: 'Swehla', isAdmin: false },
-  { id: 'svatos', name: 'Svatos', isAdmin: false }
+  { id: 'aric', name: 'Aric', isAdmin: true, image: '/images/aric.png' },
+  { id: 'cisco', name: 'Cisco', isAdmin: true, image: '/images/cisco.png' },
+  { id: 'wood', name: 'Wood', isAdmin: false, image: '/images/wood.png' },
+  { id: 'jess', name: 'Jess', isAdmin: false, image: '/images/jess.png' },
+  { id: 'bubba', name: 'Bubba', isAdmin: false, image: '/images/bubba.png' },
+  { id: 'nate', name: 'Nate', isAdmin: false, image: '/images/nate.png' },
+  { id: 'grady', name: 'Grady', isAdmin: false, image: '/images/grady.png' },
+  { id: 'weddick', name: 'Weddick', isAdmin: false, image: '/images/weddick.png' },
+  { id: 'swehla', name: 'Swehla', isAdmin: false, image: '/images/swehla.png' },
+  { id: 'svatos', name: 'Svatos', isAdmin: false, image: '/images/svatos.png' }
 ];
 
 // Initialize app state in memory cache
