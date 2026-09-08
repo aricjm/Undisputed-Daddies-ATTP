@@ -7,16 +7,16 @@ const nflCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 const appStateCache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
 
 const LEAGUE_MEMBERS = [
-  { id: 'aric', name: 'Aric', isAdmin: true, image: '/images/aric.png' },
-  { id: 'cisco', name: 'Cisco', isAdmin: true, image: '/images/cisco.png' },
-  { id: 'wood', name: 'Wood', isAdmin: false, image: '/images/wood.png' },
-  { id: 'jess', name: 'Jess', isAdmin: false, image: '/images/jess.png' },
-  { id: 'bubba', name: 'Bubba', isAdmin: false, image: '/images/bubba.png' },
-  { id: 'nate', name: 'Nate', isAdmin: false, image: '/images/nate.png' },
-  { id: 'grady', name: 'Grady', isAdmin: false, image: '/images/grady.png' },
-  { id: 'weddick', name: 'Weddick', isAdmin: false, image: '/images/weddick.png' },
-  { id: 'swehla', name: 'Swehla', isAdmin: false, image: '/images/swehla.png' },
-  { id: 'svatos', name: 'Svatos', isAdmin: false, image: '/images/svatos.png' }
+  { id: 'aric', name: 'Aric', fullName: 'Aric Myers', teamName: 'Future Father of 3 FC', isAdmin: true, image: '/images/aric.png' },
+  { id: 'cisco', name: 'Cisco', fullName: 'Andrew Cisco', teamName: 'The 29ers', isAdmin: true, image: '/images/cisco.png' },
+  { id: 'wood', name: 'Wood', fullName: 'Nick Wood', teamName: 'The Replacements', isAdmin: false, image: '/images/wood.png' },
+  { id: 'jess', name: 'Jess', fullName: 'Austin Jess', teamName: 'Better Call Pearsall', isAdmin: false, image: '/images/jess.png' },
+  { id: 'bubba', name: 'Bubba', fullName: 'Bubba Maske', teamName: 'What is Love?', isAdmin: false, image: '/images/bubba.png' },
+  { id: 'nate', name: 'Nate', fullName: 'Nate Winegarden', teamName: "Poepsel's Posse", isAdmin: false, image: '/images/nate.png' },
+  { id: 'grady', name: 'Grady', fullName: 'Danny Grady', teamName: 'Our comissioner is a dictator', isAdmin: false, image: '/images/grady.png' },
+  { id: 'weddick', name: 'Weddick', fullName: 'Danny Weddick', teamName: 'Real Champ', isAdmin: false, image: '/images/weddick.png' },
+  { id: 'swehla', name: 'Swehla', fullName: 'Zach Swehla', teamName: 'Champ', isAdmin: false, image: '/images/swehla.png' },
+  { id: 'svatos', name: 'Svatos', fullName: 'Austin Svatos', teamName: 'Pardon My Snake', isAdmin: false, image: '/images/svatos.png' }
 ];
 
 // Calculate current NFL week based on Tuesday 2:00 AM CST rollover

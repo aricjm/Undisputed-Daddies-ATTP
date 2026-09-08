@@ -400,6 +400,15 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.member-subname {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
 }
 
 .player-picked-row {

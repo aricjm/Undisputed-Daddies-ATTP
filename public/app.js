@@ -136,7 +136,8 @@ async function loadParlayData() {
 function renderParlayTab(data) {
   // Update Header & Bettor
   document.getElementById('current-week-tag').innerHTML = `<span class="pulse-dot"></span> Week ${data.week}`;
-  designatedBettorName.textContent = data.bettor ? data.bettor.name : 'Not set';
+  const bettorDisplayName = data.bettor ? (data.bettor.teamName ? `${data.bettor.teamName} (${data.bettor.fullName || data.bettor.name})` : data.bettor.name) : 'Not set';
+  designatedBettorName.textContent = bettorDisplayName;
   designatedBettorReason.textContent = data.bettorReason || 'Least fantasy points scored in previous week';
 
   // Update Payout Card
@@ -165,9 +166,10 @@ function renderParlayTab(data) {
           </div>
           <div class="member-info">
             <div class="member-name">
-              ${member.name}
+              ${member.teamName || member.name}
               ${member.isAdmin ? '<span style="font-size:10px; color:#f59e0b;">(Admin)</span>' : ''}
             </div>
+            <div class="member-subname">${member.fullName ? `${member.fullName} (${member.name})` : member.name}</div>
             <div class="player-picked-row">
               <img src="${pick.player.headshot}" class="player-headshot-tiny" onerror="this.src='https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/default.png'" alt="${pick.player.name}">
               <span class="player-picked-name">${pick.player.name}</span>
@@ -195,9 +197,10 @@ function renderParlayTab(data) {
           </div>
           <div class="member-info">
             <div class="member-name">
-              ${member.name}
+              ${member.teamName || member.name}
               ${member.isAdmin ? '<span style="font-size:10px; color:#f59e0b;">(Admin)</span>' : ''}
             </div>
+            <div class="member-subname">${member.fullName ? `${member.fullName} (${member.name})` : member.name}</div>
             <div class="no-pick-label">Has not selected a player yet</div>
           </div>
         </div>
@@ -369,10 +372,13 @@ function openPickModalForPlayer(playerId) {
     option.className = `member-select-option ${alreadyPicked ? 'disabled' : ''} ${selectedMemberForPick === m.id && !alreadyPicked ? 'selected' : ''}`;
     option.innerHTML = `
       <img src="${memberImg}" class="member-modal-avatar-img" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
-      <div style="font-weight:700; color:${alreadyPicked ? '#64748b' : '#fff'}; font-size:13px; display:flex; align-items:center; gap:4px;">
-        ${m.name} ${m.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
+      <div style="display:flex; flex-direction:column; min-width:0; flex:1;">
+        <div style="font-weight:700; color:${alreadyPicked ? '#64748b' : '#fff'}; font-size:12px; display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          ${m.teamName || m.name} ${m.isAdmin ? '<i data-lucide="crown" style="width:11px; height:11px; color:#f59e0b; flex-shrink:0;"></i>' : ''}
+        </div>
+        <div style="font-size:10px; color:#94a3b8;">${m.fullName || m.name}</div>
       </div>
-      ${alreadyPicked ? '<span style="font-size:9px; color:#ef4444; margin-left:auto; font-weight:700;">PICKED</span>' : ''}
+      ${alreadyPicked ? '<span style="font-size:9px; color:#ef4444; margin-left:auto; font-weight:700; flex-shrink:0;">PICKED</span>' : ''}
     `;
 
     if (!alreadyPicked) {
@@ -462,7 +468,7 @@ function openAdminBettorModal() {
   leagueMembers.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m.id;
-    opt.textContent = `${m.name}${m.isAdmin ? ' (Admin)' : ''}`;
+    opt.textContent = `${m.teamName || m.name} (${m.fullName || m.name})${m.isAdmin ? ' [Admin]' : ''}`;
     if (parlayData?.bettor && parlayData.bettor.id === m.id) {
       opt.selected = true;
     }
@@ -582,8 +588,11 @@ function renderStatsTab(data) {
         <div class="stat-card-user">
           <span class="rank-badge ${rank <= 3 ? `top-${rank}` : ''}">#${rank}</span>
           <img src="${memberImg}" class="member-stat-avatar-img" alt="${item.member.name}" onerror="this.onerror=null; this.src='/images/${item.member.id}.png';">
-          <div class="stat-user-name" style="display:flex; align-items:center; gap:6px;">
-            ${item.member.name} ${item.member.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
+          <div style="display:flex; flex-direction:column;">
+            <div class="stat-user-name" style="display:flex; align-items:center; gap:6px;">
+              ${item.member.teamName || item.member.name} ${item.member.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
+            </div>
+            <div style="font-size:11px; color:#94a3b8;">${item.member.fullName ? `${item.member.fullName} (${item.member.name})` : item.member.name}</div>
           </div>
         </div>
         <div class="stat-summary-pill">
