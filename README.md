@@ -47,7 +47,15 @@ A responsive mobile-first web app built for the 10-team **Undisputed Daddies** f
 
 ---
 
-### Quick Start
+### Deployment (Vercel)
+This app is pre-configured for Vercel:
+1. Connect your repository (`https://github.com/aricjm/Undisputed-Daddies-ATTP`) in the [Vercel Dashboard](https://vercel.com).
+2. The serverless functions in [api/index.js](api/index.js) and static files in [public](public) are automatically recognized via [vercel.json](vercel.json).
+3. Deploy directly with zero configuration needed.
+
+---
+
+### Quick Start (Local Development)
 ```bash
 # Install dependencies
 npm install
@@ -55,4 +63,4 @@ npm install
 # Start the server
 npm start
 ```
-Then open `http://localhost:3000` in your browser (or on your phone on the local Wi-Fi network).
+Then open `http://localhost:3000` in your browser.
