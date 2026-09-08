@@ -590,30 +590,19 @@ async function copyParlaySlip(silent = false) {
   }
 }
 
-// Open DraftKings with auto-copy and deep linking
+// Open DraftKings with auto-copy and Universal Link
 async function openDraftKingsBetSlip() {
   // 1. Copy formatted parlay to clipboard so user has it ready
   await copyParlaySlip(true);
 
   showToast('Parlay copied! Opening DraftKings...');
 
-  // 2. Mobile deep-link attempt (dksportsbook://), with web fallback
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const dkWebUrl = 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
-  const dkAppUrl = 'dksportsbook://sports/football/nfl';
-
-  if (isMobile) {
-    // Try opening app, then fallback to web after 1.5s if app does not intercept
-    const start = Date.now();
-    window.location.href = dkAppUrl;
-    setTimeout(() => {
-      if (Date.now() - start < 2000) {
-        window.open(dkWebUrl, '_blank');
-      }
-    }, 1500);
-  } else {
-    window.open(dkWebUrl, '_blank');
-  }
+  // Use DraftKings Universal Link HTTPS URL:
+  // On iOS and Android with the DraftKings Sportsbook app installed, iOS/Android automatically
+  // intercepts sportsbook.draftkings.com and opens the native app with zero popup warnings.
+  // If the app is not installed, Safari opens the mobile web page cleanly.
+  const dkUrl = 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
+  window.open(dkUrl, '_blank');
 }
 
 // Native Share API to send parlay to group chat
