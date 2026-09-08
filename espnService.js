@@ -26,12 +26,13 @@ function estimateAttOdds(pos, index) {
 }
 
 // Fetch scoreboard to get current week, season, games, and teams
-async function fetchCurrentScoreboard() {
-  const cacheKey = 'nfl_scoreboard';
+async function fetchCurrentScoreboard(targetWeek) {
+  const weekParam = targetWeek ? `?week=${targetWeek}` : '';
+  const cacheKey = `nfl_scoreboard_${targetWeek || 'current'}`;
   const cached = nflCache.get(cacheKey);
   if (cached) return cached;
 
-  const url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+  const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard${weekParam}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch scoreboard: ${res.statusText}`);
@@ -78,15 +79,15 @@ async function fetchEventPropBets(eventId) {
 }
 
 // Build list of all offensive NFL players playing this week with their matchup and ATT odds
-async function getWeekPlayers() {
-  const cacheKey = 'all_week_players';
+async function getWeekPlayers(targetWeek) {
+  const cacheKey = `all_week_players_${targetWeek || 'current'}`;
   const cached = nflCache.get(cacheKey);
   if (cached) return cached;
 
-  const scoreboard = await fetchCurrentScoreboard();
+  const scoreboard = await fetchCurrentScoreboard(targetWeek);
   const weekInfo = {
     season: scoreboard.season?.year || 2026,
-    week: scoreboard.week?.number || 1
+    week: targetWeek || scoreboard.week?.number || 1
   };
 
   const matchupsByTeamId = {};
@@ -208,10 +209,10 @@ async function getWeekPlayers() {
 }
 
 // Check touchdown status for players in current week using live ESPN scoring plays
-async function checkPlayerScoringStatus(picks) {
+async function checkPlayerScoringStatus(picks, targetWeek) {
   if (!picks || picks.length === 0) return [];
 
-  const scoreboard = await fetchCurrentScoreboard();
+  const scoreboard = await fetchCurrentScoreboard(targetWeek);
   const eventIds = new Set(scoreboard.events?.map(e => e.id) || []);
 
   // Fetch summaries for all events playing this week in parallel

@@ -19,11 +19,29 @@ const LEAGUE_MEMBERS = [
   { id: 'svatos', name: 'Svatos', isAdmin: false, image: '/images/svatos.png' }
 ];
 
+// Calculate current NFL week based on Tuesday 2:00 AM CST rollover
+// Week 1 starts Tuesday 09/08/2026 at 2:00 AM CST
+// Week 2 starts Tuesday 09/15/2026 at 2:00 AM CST, etc.
+function getCurrentCalculatedWeek(date = new Date()) {
+  // Tuesday Sep 8, 2026 02:00 CST = 07:00 UTC
+  const week1StartUtc = Date.UTC(2026, 8, 8, 7, 0, 0);
+  const nowMs = date.getTime();
+  const diffMs = nowMs - week1StartUtc;
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+  if (diffMs < 0) {
+    return 1;
+  }
+  const weekNum = 1 + Math.floor(diffMs / ONE_WEEK_MS);
+  return Math.min(Math.max(weekNum, 1), 18);
+}
+
 // Initialize app state in memory cache
 function initAppState() {
   if (!appStateCache.has('app_state')) {
+    const currentWeek = getCurrentCalculatedWeek();
     const initialState = {
-      currentWeek: 1,
+      currentWeek,
       seasonYear: 2026,
       currentBettor: 'cisco', // Default bettor (lowest fantasy points previous week)
       bettorReason: 'Scored least fantasy points in previous week (64.2 pts)',
@@ -43,7 +61,30 @@ initAppState();
 
 function getAppState() {
   initAppState();
-  return appStateCache.get('app_state');
+  const state = appStateCache.get('app_state');
+
+  // Check if calendar has crossed Tuesday 2am CST into a new week
+  const expectedWeek = getCurrentCalculatedWeek();
+  if (state.currentWeek !== expectedWeek) {
+    // Archive previous week picks into history if not already archived
+    if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
+      state.history = state.history || {};
+      state.history[state.currentWeek] = state.currentWeekPicks.map(p => ({
+        memberId: p.memberId,
+        memberName: p.memberName,
+        player: p.player,
+        result: p.hasScored ? 'scored' : 'missed'
+      }));
+    }
+
+    // Advance to new week and reset current week picks
+    state.currentWeek = expectedWeek;
+    state.currentWeekPicks = [];
+    state.lastScoringCheck = null;
+    appStateCache.set('app_state', state);
+  }
+
+  return state;
 }
 
 function updateAppState(updater) {
@@ -110,6 +151,7 @@ module.exports = {
   nflCache,
   appStateCache,
   LEAGUE_MEMBERS,
+  getCurrentCalculatedWeek,
   getAppState,
   updateAppState,
   americanToDecimal,

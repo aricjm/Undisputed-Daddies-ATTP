@@ -91,13 +91,13 @@ app.get('/api/parlay', async (req, res) => {
 app.get('/api/players', async (req, res) => {
   try {
     const state = getAppState();
-    const weekData = await getWeekPlayers();
+    const weekData = await getWeekPlayers(state.currentWeek);
     
     const pickedPlayerIds = new Set(state.currentWeekPicks.map(p => String(p.player.id)));
     const availablePlayers = weekData.players.filter(p => !pickedPlayerIds.has(String(p.id)));
 
     res.json({
-      week: weekData.week,
+      week: state.currentWeek,
       season: weekData.season,
       totalAvailable: availablePlayers.length,
       totalRoster: weekData.players.length,
@@ -133,7 +133,7 @@ app.post('/api/picks', async (req, res) => {
       return res.status(400).json({ error: `This player has already been chosen by ${playerTaken.memberName}.` });
     }
 
-    const weekData = await getWeekPlayers();
+    const weekData = await getWeekPlayers(state.currentWeek);
     const player = weekData.players.find(p => String(p.id) === String(playerId));
     if (!player) {
       return res.status(404).json({ error: 'Player not found in active week player pool.' });
@@ -209,7 +209,7 @@ app.post('/api/parlay/refresh', async (req, res) => {
       });
     }
 
-    const updatedPicks = await checkPlayerScoringStatus(state.currentWeekPicks);
+    const updatedPicks = await checkPlayerScoringStatus(state.currentWeekPicks, state.currentWeek);
     state.currentWeekPicks = updatedPicks;
     state.lastScoringCheck = new Date().toISOString();
     updateAppState(state);
