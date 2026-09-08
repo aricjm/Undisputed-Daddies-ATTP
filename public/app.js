@@ -48,6 +48,20 @@ const adminBettorSelect = document.getElementById('admin-bettor-select');
 const adminBettorReason = document.getElementById('admin-bettor-reason');
 const adminTdSimList = document.getElementById('admin-td-sim-list');
 
+// Profile Edit Modal
+const editProfileModal = document.getElementById('edit-profile-modal');
+const closeProfileModal = document.getElementById('close-profile-modal');
+const cancelProfileBtn = document.getElementById('cancel-profile-btn');
+const saveProfileBtn = document.getElementById('save-profile-btn');
+const profilePreviewImg = document.getElementById('profile-preview-img');
+const profileMemberOwnerName = document.getElementById('profile-member-owner-name');
+const profileTeamNameInput = document.getElementById('profile-team-name-input');
+const profileImageInput = document.getElementById('profile-image-input');
+const profileImageUrlInput = document.getElementById('profile-image-url-input');
+const applyUrlIconBtn = document.getElementById('apply-url-icon-btn');
+let activeEditingMemberId = null;
+let currentEditingImageData = null;
+
 // Search & Filter
 const playerSearch = document.getElementById('player-search');
 const clearSearch = document.getElementById('clear-search');
@@ -161,13 +175,18 @@ function renderParlayTab(data) {
       card.className = `leg-card ${isScored ? 'scored' : ''}`;
       card.innerHTML = `
         <div class="leg-card-left">
-          <div class="member-avatar ${member.isAdmin ? 'admin' : ''}">
+          <div class="member-avatar ${member.isAdmin ? 'admin' : ''}" onclick="openProfileModal('${member.id}')" title="Click to edit team profile">
             <img src="${memberImg}" alt="${member.name}" class="member-avatar-img" onerror="this.onerror=null; this.src='/images/${member.id}.png';">
+            <div class="avatar-edit-hint"><i data-lucide="edit-2" style="width:10px; height:10px;"></i></div>
           </div>
           <div class="member-info">
-            <div class="member-name">
-              ${member.teamName || member.name}
-            //   ${member.isAdmin ? '<span style="font-size:10px; color:#f59e0b;">(Admin)</span>' : ''}
+            <div class="member-name-row">
+              <span class="member-name clickable" onclick="openProfileModal('${member.id}')" title="Click to edit team name">
+                ${member.teamName || member.name}
+              </span>
+              <button class="member-profile-edit-btn" onclick="openProfileModal('${member.id}')" title="Edit team name & icon">
+                <i data-lucide="edit-3" style="width:12px; height:12px;"></i>
+              </button>
             </div>
             <div class="member-subname">${member.fullName ? `${member.fullName}` : member.name}</div>
             <div class="player-picked-row">
@@ -192,13 +211,18 @@ function renderParlayTab(data) {
       card.className = 'leg-card empty';
       card.innerHTML = `
         <div class="leg-card-left">
-          <div class="member-avatar ${member.isAdmin ? 'admin' : ''}">
+          <div class="member-avatar ${member.isAdmin ? 'admin' : ''}" onclick="openProfileModal('${member.id}')" title="Click to edit team profile">
             <img src="${memberImg}" alt="${member.name}" class="member-avatar-img" onerror="this.onerror=null; this.src='/images/${member.id}.png';">
+            <div class="avatar-edit-hint"><i data-lucide="edit-2" style="width:10px; height:10px;"></i></div>
           </div>
           <div class="member-info">
-            <div class="member-name">
-              ${member.teamName || member.name}
-              ${member.isAdmin ? '<span style="font-size:10px; color:#f59e0b;">(Admin)</span>' : ''}
+            <div class="member-name-row">
+              <span class="member-name clickable" onclick="openProfileModal('${member.id}')" title="Click to edit team name">
+                ${member.teamName || member.name}
+              </span>
+              <button class="member-profile-edit-btn" onclick="openProfileModal('${member.id}')" title="Edit team name & icon">
+                <i data-lucide="edit-3" style="width:12px; height:12px;"></i>
+              </button>
             </div>
             <div class="member-subname">${member.fullName ? `${member.fullName} (${member.name})` : member.name}</div>
             <div class="no-pick-label">Has not selected a player yet</div>
@@ -548,6 +572,82 @@ async function saveBettorDesignation() {
   }
 }
 
+// Open Edit Profile Modal with large team icon
+function openProfileModal(memberId) {
+  const member = leagueMembers.find(m => m.id === memberId);
+  if (!member) return;
+
+  activeEditingMemberId = member.id;
+  currentEditingImageData = member.image || `/images/${member.id}.png`;
+
+  profileMemberOwnerName.textContent = `Team of ${member.fullName || member.name} (${member.name})`;
+  profileTeamNameInput.value = member.teamName || member.name;
+  profilePreviewImg.src = currentEditingImageData;
+  profileImageUrlInput.value = '';
+
+  editProfileModal.classList.add('open');
+  refreshIcons();
+}
+
+// Handle Image File Upload (convert to Data URL)
+function handleProfileImageFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('Please select a valid image file');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    currentEditingImageData = e.target.result;
+    profilePreviewImg.src = currentEditingImageData;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Save Profile Changes (Team Name & Icon)
+async function saveTeamProfile() {
+  if (!activeEditingMemberId) return;
+
+  const newTeamName = (profileTeamNameInput.value || '').trim();
+  if (!newTeamName) {
+    showToast('Please enter a team name');
+    return;
+  }
+
+  saveProfileBtn.disabled = true;
+  saveProfileBtn.innerHTML = '<i data-lucide="loader-2" class="spin-icon" style="width:14px; height:14px;"></i> Saving...';
+  refreshIcons();
+
+  try {
+    const res = await fetch(`/api/members/${activeEditingMemberId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teamName: newTeamName,
+        image: currentEditingImageData
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Updated team profile!`);
+      editProfileModal.classList.remove('open');
+      await loadMembers();
+      if (currentTab === 'tab-parlay') await loadParlayData();
+      if (currentTab === 'tab-stats') await loadStatsData();
+    } else {
+      showToast(data.error || 'Failed to update profile');
+    }
+  } catch (err) {
+    showToast('Error saving team profile');
+  } finally {
+    saveProfileBtn.disabled = false;
+    saveProfileBtn.innerHTML = '<i data-lucide="save"></i> Save Changes';
+    refreshIcons();
+  }
+}
+
 // Stats & Leaderboard
 async function loadStatsData() {
   leaderboardContainer.innerHTML = `<div class="loading-state"><i data-lucide="loader-2" class="spin-icon"></i> Calculating league records...</div>`;
@@ -587,10 +687,11 @@ function renderStatsTab(data) {
       <div class="stat-card-header">
         <div class="stat-card-user">
           <span class="rank-badge ${rank <= 3 ? `top-${rank}` : ''}">#${rank}</span>
-          <img src="${memberImg}" class="member-stat-avatar-img" alt="${item.member.name}" onerror="this.onerror=null; this.src='/images/${item.member.id}.png';">
+          <img src="${memberImg}" class="member-stat-avatar-img clickable" alt="${item.member.name}" onclick="openProfileModal('${item.member.id}')" title="Click to edit profile" onerror="this.onerror=null; this.src='/images/${item.member.id}.png';">
           <div style="display:flex; flex-direction:column;">
-            <div class="stat-user-name" style="display:flex; align-items:center; gap:6px;">
+            <div class="stat-user-name clickable" onclick="openProfileModal('${item.member.id}')" title="Click to edit team name" style="display:flex; align-items:center; gap:6px;">
               ${item.member.teamName || item.member.name} ${item.member.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
+              <button class="member-profile-edit-btn" onclick="openProfileModal('${item.member.id}')"><i data-lucide="edit-3" style="width:11px; height:11px;"></i></button>
             </div>
             <div style="font-size:11px; color:#94a3b8;">${item.member.fullName ? `${item.member.fullName} (${item.member.name})` : item.member.name}</div>
           </div>
@@ -669,4 +770,24 @@ function setupEventListeners() {
   closeBettorModal.addEventListener('click', () => bettorModal.classList.remove('open'));
   cancelBettorBtn.addEventListener('click', () => bettorModal.classList.remove('open'));
   saveBettorBtn.addEventListener('click', saveBettorDesignation);
+
+  // Profile Modal
+  closeProfileModal.addEventListener('click', () => editProfileModal.classList.remove('open'));
+  cancelProfileBtn.addEventListener('click', () => editProfileModal.classList.remove('open'));
+  saveProfileBtn.addEventListener('click', saveTeamProfile);
+
+  profileImageInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleProfileImageFile(e.target.files[0]);
+    }
+  });
+
+  applyUrlIconBtn.addEventListener('click', () => {
+    const url = (profileImageUrlInput.value || '').trim();
+    if (url) {
+      currentEditingImageData = url;
+      profilePreviewImg.src = url;
+      showToast('Applied image URL preview');
+    }
+  });
 }

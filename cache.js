@@ -65,7 +65,8 @@ function getInitialState() {
     bettorReason: 'Scored least fantasy points in previous week (64.2 pts)',
     currentWeekPicks: [],
     history: {},
-    lastScoringCheck: null
+    lastScoringCheck: null,
+    memberOverrides: {} // memberId -> { teamName, image }
   };
 }
 
@@ -91,6 +92,8 @@ async function getAppState() {
     state = localAppStateCache.get('app_state');
   }
 
+  state.memberOverrides = state.memberOverrides || {};
+
   // Check if calendar has crossed Tuesday 2:00 AM CST into a new week
   const expectedWeek = getCurrentCalculatedWeek();
   if (state.currentWeek !== expectedWeek) {
@@ -112,6 +115,20 @@ async function getAppState() {
   }
 
   return state;
+}
+
+// Get members enriched with any dynamic user overrides
+async function getEnrichedMembers() {
+  const state = await getAppState();
+  const overrides = state.memberOverrides || {};
+  return LEAGUE_MEMBERS.map(m => {
+    const override = overrides[m.id] || {};
+    return {
+      ...m,
+      teamName: override.teamName || m.teamName,
+      image: override.image || m.image
+    };
+  });
 }
 
 // Persist app state to Upstash Redis and in-memory cache
@@ -194,6 +211,7 @@ module.exports = {
   nflCache,
   redisClient,
   LEAGUE_MEMBERS,
+  getEnrichedMembers,
   getCurrentCalculatedWeek,
   getAppState,
   saveAppState,

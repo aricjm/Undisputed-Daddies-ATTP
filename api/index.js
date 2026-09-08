@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const {
   LEAGUE_MEMBERS,
+  getEnrichedMembers,
   getAppState,
   updateAppState,
   calculateParlay
@@ -14,18 +15,58 @@ const {
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-app.get('/api/members', (req, res) => {
-  res.json({ members: LEAGUE_MEMBERS });
+app.get('/api/members', async (req, res) => {
+  try {
+    const members = await getEnrichedMembers();
+    res.json({ members });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/members/:memberId', async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const { teamName, image } = req.body;
+
+    const baseMember = LEAGUE_MEMBERS.find(m => m.id === memberId);
+    if (!baseMember) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    const state = await getAppState();
+    state.memberOverrides = state.memberOverrides || {};
+    const existing = state.memberOverrides[memberId] || {};
+
+    state.memberOverrides[memberId] = {
+      teamName: typeof teamName === 'string' && teamName.trim() ? teamName.trim() : (existing.teamName || baseMember.teamName),
+      image: typeof image === 'string' && image.trim() ? image.trim() : (existing.image || baseMember.image)
+    };
+
+    await updateAppState(state);
+
+    const updatedMembers = await getEnrichedMembers();
+    const updatedMember = updatedMembers.find(m => m.id === memberId);
+
+    res.json({
+      success: true,
+      message: `Updated team profile for ${updatedMember.name}!`,
+      member: updatedMember
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/parlay', async (req, res) => {
   try {
     const state = await getAppState();
+    const members = await getEnrichedMembers();
     const parlayCalculation = calculateParlay(state.currentWeekPicks, 10);
 
-    const memberStatuses = LEAGUE_MEMBERS.map(m => {
+    const memberStatuses = members.map(m => {
       const pick = state.currentWeekPicks.find(p => p.memberId === m.id);
       return {
         ...m,
@@ -34,7 +75,7 @@ app.get('/api/parlay', async (req, res) => {
       };
     });
 
-    const currentBettorMember = LEAGUE_MEMBERS.find(m => m.id === state.currentBettor) || LEAGUE_MEMBERS[1];
+    const currentBettorMember = members.find(m => m.id === state.currentBettor) || members[1];
 
     res.json({
       week: state.currentWeek,
@@ -43,7 +84,7 @@ app.get('/api/parlay', async (req, res) => {
       bettorReason: state.bettorReason || '',
       members: memberStatuses,
       picksCount: state.currentWeekPicks.length,
-      totalMembers: LEAGUE_MEMBERS.length,
+      totalMembers: members.length,
       parlay: parlayCalculation,
       lastScoringCheck: state.lastScoringCheck
     });
@@ -245,9 +286,10 @@ app.post('/api/admin/simulate-td', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
   try {
     const state = await getAppState();
+    const members = await getEnrichedMembers();
     const statsByMember = {};
 
-    for (const m of LEAGUE_MEMBERS) {
+    for (const m of members) {
       statsByMember[m.id] = {
         member: m,
         totalPicks: 0,

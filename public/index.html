@@ -64,7 +64,7 @@
             <span class="counter-denom">/10 PICKS LOCKED</span>
           </div>
           <button class="btn btn-refresh" id="refresh-scores-btn">
-            <i data-lucide="rotate-cw" id="refresh-icon"></i> Refresh Scores
+            <i data-lucide="rotate-cw" id="refresh-icon"></i> Refresh
           </button>
         </div>
 
@@ -226,6 +226,44 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" id="cancel-bettor-btn">Cancel</button>
         <button class="btn btn-primary" id="save-bettor-btn">Save Bettor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Profile & Team Name Modal -->
+  <div class="modal-overlay" id="edit-profile-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i data-lucide="settings"></i> Edit Team Profile</h3>
+        <button class="modal-close" id="close-profile-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Giant Team Icon Preview -->
+        <div class="giant-icon-preview-wrap">
+          <img id="profile-preview-img" src="" alt="Team Icon" class="giant-icon-img">
+          <label class="change-icon-overlay" for="profile-image-input" title="Upload new image">
+            <i data-lucide="camera"></i>
+            <span>Change Icon</span>
+          </label>
+          <input type="file" id="profile-image-input" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="profile-member-badge" id="profile-member-owner-name">Owner Name</div>
+
+        <label class="modal-label" style="margin-top: 16px;">Fantasy Team Name</label>
+        <input type="text" id="profile-team-name-input" class="form-input" placeholder="Enter fantasy team name...">
+
+        <label class="modal-label" style="margin-top: 14px;">Or Icon Image URL</label>
+        <div style="display:flex; gap:6px;">
+          <input type="url" id="profile-image-url-input" class="form-input" placeholder="https://... or upload above">
+          <button type="button" class="btn btn-secondary" id="apply-url-icon-btn">Apply</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-profile-btn">Cancel</button>
+        <button class="btn btn-primary" id="save-profile-btn">
+          <i data-lucide="save"></i> Save Changes
+        </button>
       </div>
     </div>
   </div>
