@@ -167,9 +167,9 @@ function renderParlayTab(data) {
           <div class="member-info">
             <div class="member-name">
               ${member.teamName || member.name}
-              ${member.isAdmin ? '<span style="font-size:10px; color:#f59e0b;">(Admin)</span>' : ''}
+            //   ${member.isAdmin ? '<span style="font-size:10px; color:#f59e0b;">(Admin)</span>' : ''}
             </div>
-            <div class="member-subname">${member.fullName ? `${member.fullName} (${member.name})` : member.name}</div>
+            <div class="member-subname">${member.fullName ? `${member.fullName}` : member.name}</div>
             <div class="player-picked-row">
               <img src="${pick.player.headshot}" class="player-headshot-tiny" onerror="this.src='https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/default.png'" alt="${pick.player.name}">
               <span class="player-picked-name">${pick.player.name}</span>

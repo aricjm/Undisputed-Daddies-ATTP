@@ -8,8 +8,10 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
+    "@upstash/redis": "^1.38.4",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
     "node-cache": "^5.1.2"
   }
 }

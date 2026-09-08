@@ -47,10 +47,17 @@ A responsive mobile-first web app built for the 10-team **Undisputed Daddies** f
 
 ---
 
-### Deployment (Vercel)
-This app is pre-configured for Vercel:
-1. Connect your repository (`https://github.com/aricjm/Undisputed-Daddies-ATTP`) in the [Vercel Dashboard](https://vercel.com).
-2. The serverless functions in [api/index.js](api/index.js) and static files in [public](public) are automatically recognized via [vercel.json](vercel.json).
+### Deployment (Vercel) & Upstash Redis Setup
+This app supports persistent cloud storage via **Upstash Redis** (free tier with zero configuration):
+
+1. **Get Free Upstash Redis Database**:
+   - In your [Vercel Dashboard](https://vercel.com), open your project.
+   - Go to the **Storage** tab and click **Create Database** -> select **Upstash Redis** (or create a database at [console.upstash.com](https://console.upstash.com)).
+   - Vercel automatically creates the environment variables:
+     - `UPSTASH_REDIS_REST_URL`
+     - `UPSTASH_REDIS_REST_TOKEN`
+2. **Seamless Fallback**:
+   - If Redis environment variables are absent, the application automatically uses local in-memory caching.
 3. Deploy directly with zero configuration needed.
 
 ---

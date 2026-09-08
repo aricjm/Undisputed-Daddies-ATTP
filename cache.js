@@ -1,10 +1,32 @@
+require('dotenv').config();
+const { Redis } = require('@upstash/redis');
 const NodeCache = require('node-cache');
 
-// In-memory cache with TTLs
-// NFL data cache: 15 minutes TTL
+// In-memory cache with TTLs for live NFL data (scoreboard & rosters)
 const nflCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
-// League app state cache: No expiration (persists in memory while server runs)
-const appStateCache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
+// Fallback in-memory cache if Upstash Redis env vars are not set (e.g. offline local dev)
+const localAppStateCache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
+
+// Initialize Upstash Redis client if credentials exist in environment
+let redisClient = null;
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+if (redisUrl && redisToken) {
+  try {
+    redisClient = new Redis({
+      url: redisUrl,
+      token: redisToken
+    });
+    console.log('[Storage] Connected to Upstash Redis for persistent league state.');
+  } catch (err) {
+    console.warn('[Storage] Failed to initialize Upstash Redis, falling back to in-memory:', err.message);
+  }
+} else {
+  console.log('[Storage] No Upstash Redis credentials found. Using local in-memory state.');
+}
+
+const REDIS_STATE_KEY = 'undisputed_daddies_app_state';
 
 const LEAGUE_MEMBERS = [
   { id: 'aric', name: 'Aric', fullName: 'Aric Myers', teamName: 'Future Father of 3 FC', isAdmin: true, image: '/images/aric.png' },
@@ -23,8 +45,7 @@ const LEAGUE_MEMBERS = [
 // Week 1 starts Tuesday 09/08/2026 at 2:00 AM CST
 // Week 2 starts Tuesday 09/15/2026 at 2:00 AM CST, etc.
 function getCurrentCalculatedWeek(date = new Date()) {
-  // Tuesday Sep 8, 2026 02:00 CST = 07:00 UTC
-  const week1StartUtc = Date.UTC(2026, 8, 8, 7, 0, 0);
+  const week1StartUtc = Date.UTC(2026, 8, 8, 7, 0, 0); // 02:00 CST = 07:00 UTC
   const nowMs = date.getTime();
   const diffMs = nowMs - week1StartUtc;
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -36,37 +57,43 @@ function getCurrentCalculatedWeek(date = new Date()) {
   return Math.min(Math.max(weekNum, 1), 18);
 }
 
-// Initialize app state in memory cache
-function initAppState() {
-  if (!appStateCache.has('app_state')) {
-    const currentWeek = getCurrentCalculatedWeek();
-    const initialState = {
-      currentWeek,
-      seasonYear: 2026,
-      currentBettor: 'cisco', // Default bettor (lowest fantasy points previous week)
-      bettorReason: 'Scored least fantasy points in previous week (64.2 pts)',
-      // Picks for current week: array of { memberId, memberName, player: { id, name, team, position, headshot, matchup, odds, decimalOdds, oddsValue }, pickedAt }
-      currentWeekPicks: [],
-      // Historical weeks stats: weekNumber -> array of picks with status: 'pending' | 'scored' | 'missed'
-      history: {
-        // We can pre-populate an example past week so the stats page is immediately rich & testable
-      },
-      lastScoringCheck: null
-    };
-    appStateCache.set('app_state', initialState);
-  }
+function getInitialState() {
+  return {
+    currentWeek: getCurrentCalculatedWeek(),
+    seasonYear: 2026,
+    currentBettor: 'cisco',
+    bettorReason: 'Scored least fantasy points in previous week (64.2 pts)',
+    currentWeekPicks: [],
+    history: {},
+    lastScoringCheck: null
+  };
 }
 
-initAppState();
+// Fetch app state from Upstash Redis (or in-memory fallback)
+async function getAppState() {
+  let state = null;
 
-function getAppState() {
-  initAppState();
-  const state = appStateCache.get('app_state');
+  if (redisClient) {
+    try {
+      state = await redisClient.get(REDIS_STATE_KEY);
+      if (typeof state === 'string') {
+        state = JSON.parse(state);
+      }
+    } catch (err) {
+      console.warn('[Redis] Error fetching state, checking in-memory fallback:', err.message);
+    }
+  }
 
-  // Check if calendar has crossed Tuesday 2am CST into a new week
+  if (!state) {
+    if (!localAppStateCache.has('app_state')) {
+      localAppStateCache.set('app_state', getInitialState());
+    }
+    state = localAppStateCache.get('app_state');
+  }
+
+  // Check if calendar has crossed Tuesday 2:00 AM CST into a new week
   const expectedWeek = getCurrentCalculatedWeek();
   if (state.currentWeek !== expectedWeek) {
-    // Archive previous week picks into history if not already archived
     if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
       state.history = state.history || {};
       state.history[state.currentWeek] = state.currentWeekPicks.map(p => ({
@@ -77,20 +104,36 @@ function getAppState() {
       }));
     }
 
-    // Advance to new week and reset current week picks
     state.currentWeek = expectedWeek;
     state.currentWeekPicks = [];
     state.lastScoringCheck = null;
-    appStateCache.set('app_state', state);
+
+    await saveAppState(state);
   }
 
   return state;
 }
 
-function updateAppState(updater) {
-  const state = getAppState();
+// Persist app state to Upstash Redis and in-memory cache
+async function saveAppState(state) {
+  localAppStateCache.set('app_state', state);
+
+  if (redisClient) {
+    try {
+      await redisClient.set(REDIS_STATE_KEY, JSON.stringify(state));
+    } catch (err) {
+      console.warn('[Redis] Error saving state to Upstash:', err.message);
+    }
+  }
+
+  return state;
+}
+
+// Update helper function
+async function updateAppState(updater) {
+  const state = await getAppState();
   const newState = typeof updater === 'function' ? updater(state) : { ...state, ...updater };
-  appStateCache.set('app_state', newState);
+  await saveAppState(newState);
   return newState;
 }
 
@@ -149,10 +192,11 @@ function calculateParlay(picks, wager = 10) {
 
 module.exports = {
   nflCache,
-  appStateCache,
+  redisClient,
   LEAGUE_MEMBERS,
   getCurrentCalculatedWeek,
   getAppState,
+  saveAppState,
   updateAppState,
   americanToDecimal,
   decimalToAmerican,

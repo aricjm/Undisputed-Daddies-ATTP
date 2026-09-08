@@ -20,16 +20,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Clean initial state with no previous picks or history
-function resetHistoryToClean() {
-  const state = getAppState();
-  state.history = {};
-  state.currentWeekPicks = [];
-  updateAppState(state);
-}
-
-resetHistoryToClean();
-
 // GET /api/members - list of 10 league guys
 app.get('/api/members', (req, res) => {
   res.json({ members: LEAGUE_MEMBERS });
@@ -38,7 +28,7 @@ app.get('/api/members', (req, res) => {
 // GET /api/parlay - current week parlay status & bettor info
 app.get('/api/parlay', async (req, res) => {
   try {
-    const state = getAppState();
+    const state = await getAppState();
     const parlayCalculation = calculateParlay(state.currentWeekPicks, 10);
 
     // Build status for each of the 10 members
@@ -72,7 +62,7 @@ app.get('/api/parlay', async (req, res) => {
 // GET /api/players - available players for current week (excluding already picked)
 app.get('/api/players', async (req, res) => {
   try {
-    const state = getAppState();
+    const state = await getAppState();
     const weekData = await getWeekPlayers(state.currentWeek);
     
     // Set of player IDs already picked this week
@@ -108,7 +98,7 @@ app.post('/api/picks', async (req, res) => {
       return res.status(400).json({ error: 'Invalid league member.' });
     }
 
-    const state = getAppState();
+    const state = await getAppState();
 
     // Check if this member has already picked this week (rule: only 1 player for each week)
     const existingPick = state.currentWeekPicks.find(p => p.memberId === memberId);
@@ -155,7 +145,7 @@ app.post('/api/picks', async (req, res) => {
     };
 
     state.currentWeekPicks.push(newPick);
-    updateAppState(state);
+    await updateAppState(state);
 
     res.json({
       success: true,
@@ -169,16 +159,16 @@ app.post('/api/picks', async (req, res) => {
 });
 
 // DELETE /api/picks/:memberId - Remove a pick (useful for admin or self-correcting)
-app.delete('/api/picks/:memberId', (req, res) => {
+app.delete('/api/picks/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
-    const state = getAppState();
+    const state = await getAppState();
     const index = state.currentWeekPicks.findIndex(p => p.memberId === memberId);
     if (index === -1) {
       return res.status(404).json({ error: 'Pick not found for this member.' });
     }
     const removed = state.currentWeekPicks.splice(index, 1)[0];
-    updateAppState(state);
+    await updateAppState(state);
     res.json({
       success: true,
       message: `Removed pick for ${removed.memberName}`,
@@ -192,7 +182,7 @@ app.delete('/api/picks/:memberId', (req, res) => {
 // POST /api/parlay/refresh - Check live ESPN API for any touchdowns scored
 app.post('/api/parlay/refresh', async (req, res) => {
   try {
-    const state = getAppState();
+    const state = await getAppState();
     if (state.currentWeekPicks.length === 0) {
       return res.json({
         message: 'No picks have been made yet to refresh.',
@@ -205,7 +195,7 @@ app.post('/api/parlay/refresh', async (req, res) => {
     const updatedPicks = await checkPlayerScoringStatus(state.currentWeekPicks, state.currentWeek);
     state.currentWeekPicks = updatedPicks;
     state.lastScoringCheck = new Date().toISOString();
-    updateAppState(state);
+    await updateAppState(state);
 
     const scoredCount = updatedPicks.filter(p => p.hasScored).length;
     const allWon = updatedPicks.length === 10 && scoredCount === 10;
@@ -225,19 +215,18 @@ app.post('/api/parlay/refresh', async (req, res) => {
 });
 
 // POST /api/admin/bettor - Admin updates who will be making the bet & reason
-app.post('/api/admin/bettor', (req, res) => {
+app.post('/api/admin/bettor', async (req, res) => {
   try {
-    const { bettorId, reason, adminKey } = req.body;
-    // In our league Aric is admin
+    const { bettorId, reason } = req.body;
     const member = LEAGUE_MEMBERS.find(m => m.id === bettorId);
     if (!member) {
       return res.status(400).json({ error: 'Invalid member selected for bettor.' });
     }
 
-    const state = getAppState();
+    const state = await getAppState();
     state.currentBettor = member.id;
     state.bettorReason = reason || 'Lowest fantasy points scored in previous week';
-    updateAppState(state);
+    await updateAppState(state);
 
     res.json({
       success: true,
@@ -251,10 +240,10 @@ app.post('/api/admin/bettor', (req, res) => {
 });
 
 // POST /api/admin/simulate-td - Simulation test route for Admin/Testing: mark a pick as scored or reset
-app.post('/api/admin/simulate-td', (req, res) => {
+app.post('/api/admin/simulate-td', async (req, res) => {
   try {
     const { memberId, hasScored, scoringPlay } = req.body;
-    const state = getAppState();
+    const state = await getAppState();
     const pick = state.currentWeekPicks.find(p => p.memberId === memberId);
     if (!pick) {
       return res.status(404).json({ error: 'Pick not found' });
@@ -263,7 +252,7 @@ app.post('/api/admin/simulate-td', (req, res) => {
     pick.status = pick.hasScored ? 'scored' : 'pending';
     pick.scoringPlay = scoringPlay || `${pick.player.name} 6 Yd touchdown run`;
     state.lastScoringCheck = new Date().toISOString();
-    updateAppState(state);
+    await updateAppState(state);
 
     res.json({
       success: true,
@@ -275,9 +264,9 @@ app.post('/api/admin/simulate-td', (req, res) => {
 });
 
 // GET /api/stats - League member records and historical touchdown success
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', async (req, res) => {
   try {
-    const state = getAppState();
+    const state = await getAppState();
     const statsByMember = {};
 
     // Initialize all 10 members
