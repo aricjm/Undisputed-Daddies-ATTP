@@ -16,41 +16,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Seed mock history if empty
-function seedHistoryIfEmpty() {
+// Clean initial state with no previous picks or history
+function resetHistoryToClean() {
   const state = getAppState();
-  if (!state.history || Object.keys(state.history).length === 0) {
-    state.history = {
-      17: [
-        { memberId: 'aric', memberName: 'Aric', player: { name: 'Christian McCaffrey', team: 'SF', odds: '-130' }, result: 'scored' },
-        { memberId: 'cisco', memberName: 'Cisco', player: { name: 'Travis Kelce', team: 'KC', odds: '+125' }, result: 'scored' },
-        { memberId: 'wood', memberName: 'Wood', player: { name: 'Amon-Ra St. Brown', team: 'DET', odds: '+140' }, result: 'scored' },
-        { memberId: 'jess', memberName: 'Jess', player: { name: 'Derrick Henry', team: 'BAL', odds: '-115' }, result: 'scored' },
-        { memberId: 'bubba', memberName: 'Bubba', player: { name: 'CeeDee Lamb', team: 'DAL', odds: '+110' }, result: 'scored' },
-        { memberId: 'nate', memberName: 'Nate', player: { name: 'Kyren Williams', team: 'LAR', odds: '-110' }, result: 'scored' },
-        { memberId: 'grady', memberName: 'Grady', player: { name: 'Ja\'Marr Chase', team: 'CIN', odds: '+135' }, result: 'missed' },
-        { memberId: 'weddick', memberName: 'Weddick', player: { name: 'Saquon Barkley', team: 'PHI', odds: '-105' }, result: 'scored' },
-        { memberId: 'swehla', memberName: 'Swehla', player: { name: 'Josh Allen', team: 'BUF', odds: '+150' }, result: 'scored' },
-        { memberId: 'svatos', memberName: 'Svatos', player: { name: 'Justin Jefferson', team: 'MIN', odds: '+130' }, result: 'scored' }
-      ],
-      18: [
-        { memberId: 'aric', memberName: 'Aric', player: { name: 'Jahmyr Gibbs', team: 'DET', odds: '+115' }, result: 'scored' },
-        { memberId: 'cisco', memberName: 'Cisco', player: { name: 'Breece Hall', team: 'NYJ', odds: '+120' }, result: 'missed' },
-        { memberId: 'wood', memberName: 'Wood', player: { name: 'Tyreek Hill', team: 'MIA', odds: '+110' }, result: 'scored' },
-        { memberId: 'jess', memberName: 'Jess', player: { name: 'A.J. Brown', team: 'PHI', odds: '+145' }, result: 'scored' },
-        { memberId: 'bubba', memberName: 'Bubba', player: { name: 'James Cook', team: 'BUF', odds: '+140' }, result: 'scored' },
-        { memberId: 'nate', memberName: 'Nate', player: { name: 'Alvin Kamara', team: 'NO', odds: '+135' }, result: 'missed' },
-        { memberId: 'grady', memberName: 'Grady', player: { name: 'Davante Adams', team: 'LV', odds: '+165' }, result: 'scored' },
-        { memberId: 'weddick', memberName: 'Weddick', player: { name: 'Joe Mixon', team: 'HOU', odds: '+115' }, result: 'scored' },
-        { memberId: 'swehla', memberName: 'Swehla', player: { name: 'George Kittle', team: 'SF', odds: '+170' }, result: 'scored' },
-        { memberId: 'svatos', memberName: 'Svatos', player: { name: 'Deebo Samuel', team: 'SF', odds: '+155' }, result: 'missed' }
-      ]
-    };
-    updateAppState(state);
-  }
+  state.history = {};
+  state.currentWeekPicks = [];
+  updateAppState(state);
 }
 
-seedHistoryIfEmpty();
+resetHistoryToClean();
 
 app.get('/api/members', (req, res) => {
   res.json({ members: LEAGUE_MEMBERS });
