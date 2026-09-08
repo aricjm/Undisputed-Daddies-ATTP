@@ -1,0 +1,15 @@
+{
+  "name": "undisputed-daddies-attp",
+  "version": "1.0.0",
+  "description": "10-Team Anytime Touchdown Parlay Web App for Undisputed Daddies",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "node-cache": "^5.1.2"
+  }
+}

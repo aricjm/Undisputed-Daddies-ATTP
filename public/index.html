@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Undisputed Daddies ATTP</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- App Container -->
+  <div class="app-shell">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="logo-area">
+          <div class="league-shield">
+            <i data-lucide="trophy"></i>
+          </div>
+          <div>
+            <h1 class="app-title">UNDISPUTED DADDIES</h1>
+            <span class="subtitle">10-Leg Anytime TD Parlay</span>
+          </div>
+        </div>
+        <div class="header-badge" id="current-week-tag">
+          <span class="pulse-dot"></span> Week 1
+        </div>
+      </div>
+      
+      <!-- Bettor Spotlight Card -->
+      <div class="bettor-banner" id="bettor-banner">
+        <div class="bettor-icon">
+          <i data-lucide="receipt"></i>
+        </div>
+        <div class="bettor-details">
+          <span class="bettor-label">DESIGNATED BETTOR THIS WEEK</span>
+          <div class="bettor-name" id="designated-bettor-name">Loading...</div>
+          <div class="bettor-reason" id="designated-bettor-reason">Lowest fantasy points scored last week</div>
+        </div>
+        <button class="admin-edit-btn" id="open-bettor-modal" title="Admin Edit Bettor">
+          <i data-lucide="edit-3"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area with 3 Tabs -->
+    <main class="app-main">
+      
+      <!-- ================= TAB 1: PARLAY ================= -->
+      <section id="tab-parlay" class="tab-pane active">
+        <!-- Action Row -->
+        <div class="pane-action-bar">
+          <div class="parlay-counter">
+            <span class="counter-num" id="parlay-picked-count">0</span>
+            <span class="counter-denom">/10 PICKS LOCKED</span>
+          </div>
+          <button class="btn btn-refresh" id="refresh-scores-btn">
+            <i data-lucide="rotate-cw" id="refresh-icon"></i> Refresh Scores
+          </button>
+        </div>
+
+        <!-- 10 Leg Status Grid / Cards -->
+        <div class="parlay-legs-container" id="parlay-legs-list">
+          <div class="loading-state">
+            <i data-lucide="loader-2" class="spin-icon"></i> Loading 10-Leg Parlay...
+          </div>
+        </div>
+
+        <!-- Fixed / Bottom Parlay Payout Card -->
+        <div class="parlay-payout-box" id="parlay-payout-box">
+          <div class="payout-header">
+            <div class="payout-title">
+              <i data-lucide="trending-up"></i> $10 PARLAY PAYOUT
+            </div>
+            <div class="odds-pill" id="total-parlay-odds">+0</div>
+          </div>
+          <div class="payout-body">
+            <div class="payout-stat">
+              <span class="stat-label">Potential Win</span>
+              <span class="stat-value highlight" id="payout-amount">$10.00</span>
+            </div>
+            <div class="payout-divider"></div>
+            <div class="payout-stat">
+              <span class="stat-label">Net Profit</span>
+              <span class="stat-value" id="profit-amount">$0.00</span>
+            </div>
+            <div class="payout-divider"></div>
+            <div class="payout-stat">
+              <span class="stat-label">Total Legs</span>
+              <span class="stat-value" id="legs-count">0/10</span>
+            </div>
+          </div>
+          <div class="payout-footer-note">
+            <i data-lucide="shield-check"></i> Live DraftKings / ESPN consensus odds • 100% Equal Stake
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: PLAYER LIST ================= -->
+      <section id="tab-players" class="tab-pane">
+        <!-- Search & Filter Controls -->
+        <div class="player-controls">
+          <div class="search-input-wrap">
+            <i data-lucide="search"></i>
+            <input type="text" id="player-search" placeholder="Search NFL player, team, or position..." autocomplete="off">
+            <button id="clear-search" class="clear-btn" style="display:none;">&times;</button>
+          </div>
+          <div class="position-pills">
+            <button class="pill-btn active" data-pos="ALL">ALL</button>
+            <button class="pill-btn" data-pos="RB">RB</button>
+            <button class="pill-btn" data-pos="WR">WR</button>
+            <button class="pill-btn" data-pos="TE">TE</button>
+            <button class="pill-btn" data-pos="QB">QB</button>
+          </div>
+        </div>
+
+        <!-- Available Players List -->
+        <div class="players-info-header">
+          <span id="player-count-display">Showing available players</span>
+          <span class="cache-badge"><i data-lucide="zap"></i> ESPN API Live</span>
+        </div>
+
+        <div class="player-card-list" id="player-card-list">
+          <div class="loading-state">
+            <i data-lucide="loader-2" class="spin-icon"></i> Fetching NFL rosters & Anytime TD odds...
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: STATS ================= -->
+      <section id="tab-stats" class="tab-pane">
+        <div class="stats-header-banner">
+          <div class="stats-title-group">
+            <h2>LEAGUE RECORD & STATS</h2>
+            <p>Track who cashes their anytime touchdown picks week-over-week</p>
+          </div>
+        </div>
+
+        <!-- Leaderboard Table / Cards -->
+        <div class="leaderboard-container" id="leaderboard-container">
+          <div class="loading-state">
+            <i data-lucide="loader-2" class="spin-icon"></i> Calculating league records...
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Mobile Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-target="tab-parlay">
+        <i data-lucide="ticket"></i>
+        <span>Parlay</span>
+      </button>
+      <button class="nav-item" data-target="tab-players">
+        <i data-lucide="users"></i>
+        <span>Player List</span>
+      </button>
+      <button class="nav-item" data-target="tab-stats">
+        <i data-lucide="bar-chart-2"></i>
+        <span>Stats</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Pick Modal: Select which guy is making this pick -->
+  <div class="modal-overlay" id="pick-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Lock In Your TD Pick</h3>
+        <button class="modal-close" id="close-pick-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="selected-player-summary" id="modal-player-summary">
+          <!-- Selected Player Summary -->
+        </div>
+
+        <label class="modal-label">Who is making this pick?</label>
+        <div class="member-selector-list" id="modal-member-list">
+          <!-- League Members Radio Buttons -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-pick-btn">Cancel</button>
+        <button class="btn btn-primary" id="confirm-pick-btn" disabled>
+          <i data-lucide="lock"></i> Add to Parlay
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal: Update Bettor & Reason -->
+  <div class="modal-overlay" id="bettor-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i data-lucide="shield"></i> Admin Bettor Designation</h3>
+        <button class="modal-close" id="close-bettor-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Assign who is responsible for placing this week's $10 10-leg parlay (who scored the least fantasy points last week):</p>
+        
+        <label class="modal-label">Designate Guy</label>
+        <select id="admin-bettor-select" class="form-select">
+          <!-- Populated dynamically -->
+        </select>
+
+        <label class="modal-label" style="margin-top: 14px;">Reason / Fantasy Score</label>
+        <input type="text" id="admin-bettor-reason" class="form-input" placeholder="e.g. Scored 58.4 pts in Week 1">
+
+        <div class="admin-tools-box">
+          <div class="tools-title"><i data-lucide="flask-conical"></i> Live Test / Simulator</div>
+          <p>Test the "Refresh Scores" live TD trigger on any pick:</p>
+          <div id="admin-td-sim-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-bettor-btn">Cancel</button>
+        <button class="btn btn-primary" id="save-bettor-btn">Save Bettor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
