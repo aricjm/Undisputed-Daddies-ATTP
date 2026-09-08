@@ -31,6 +31,11 @@ const payoutAmount = document.getElementById('payout-amount');
 const profitAmount = document.getElementById('profit-amount');
 const legsCount = document.getElementById('legs-count');
 
+// DraftKings Bet Slip Assistant elements
+const openDraftkingsBtn = document.getElementById('open-draftkings-btn');
+const copySlipBtn = document.getElementById('copy-slip-btn');
+const shareSlipBtn = document.getElementById('share-slip-btn');
+
 // Modals
 const pickModal = document.getElementById('pick-modal');
 const modalPlayerSummary = document.getElementById('modal-player-summary');
@@ -202,9 +207,14 @@ function renderParlayTab(data) {
           <span class="status-badge ${isScored ? 'scored' : 'pending'}">
             ${isScored ? '<i data-lucide="check" style="width:12px; height:12px;"></i> TD SCORED!' : 'PENDING'}
           </span>
-          <button class="delete-pick-btn" onclick="removePick('${member.id}', '${member.name}')" title="Remove pick">
-            <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
-          </button>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+            <a href="https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers" target="_blank" rel="noopener" class="dk-leg-link" title="Search player on DraftKings">
+              <span class="dk-mini-badge">DK</span>
+            </a>
+            <button class="delete-pick-btn" onclick="removePick('${member.id}', '${member.name}')" title="Remove pick">
+              <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+            </button>
+          </div>
         </div>
       `;
     } else {
@@ -529,22 +539,100 @@ function renderSimulatorTools() {
   });
 }
 
-// Simulate TD
-async function simulatePickTD(memberId, hasScored) {
-  try {
-    const res = await fetch('/api/admin/simulate-td', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId, hasScored })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`Simulation updated!`);
-      await loadParlayData();
-      renderSimulatorTools();
+// Generate formatted text representation of the current parlay for clipboard/sharing
+function generateParlayText() {
+  if (!parlayData) return '';
+  const picks = parlayData.members.filter(m => m.hasPicked).map(m => m.pick);
+  if (picks.length === 0) return 'No picks locked in yet for Undisputed Daddies Week ' + (parlayData.week || 1);
+
+  const parlay = parlayData.parlay || {};
+  let text = `🏈 UNDISPUTED DADDIES - WEEK ${parlayData.week} ATTP\n`;
+  text += `10-Leg Anytime TD Parlay ($10 Bet)\n`;
+  text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Potential Payout: $${parlay.payout || '10.00'}\n`;
+  text += `Designated Bettor: ${parlayData.bettor?.teamName || parlayData.bettor?.name} (${parlayData.bettor?.fullName || parlayData.bettor?.name})\n\n`;
+  text += `PICKS (${picks.length}/10):\n`;
+
+  parlayData.members.forEach((m, idx) => {
+    if (m.hasPicked) {
+      const p = m.pick.player;
+      text += `${idx + 1}. [${m.name}] ${p.name} (${p.team} - ${p.position}) ${p.matchup} • ${p.odds}\n`;
+    } else {
+      text += `${idx + 1}. [${m.name}] Not selected yet\n`;
     }
+  });
+
+  return text;
+}
+
+// Copy parlay checklist to clipboard
+async function copyParlaySlip(silent = false) {
+  const text = generateParlayText();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    if (!silent) {
+      showToast('Parlay slip copied to clipboard!');
+    }
+    return true;
   } catch (err) {
-    showToast('Simulation failed');
+    console.error('Failed to copy to clipboard:', err);
+    if (!silent) showToast('Could not copy slip');
+    return false;
+  }
+}
+
+// Open DraftKings with auto-copy and deep linking
+async function openDraftKingsBetSlip() {
+  // 1. Copy formatted parlay to clipboard so user has it ready
+  await copyParlaySlip(true);
+
+  showToast('Parlay copied! Opening DraftKings...');
+
+  // 2. Mobile deep-link attempt (dksportsbook://), with web fallback
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const dkWebUrl = 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
+  const dkAppUrl = 'dksportsbook://sports/football/nfl';
+
+  if (isMobile) {
+    // Try opening app, then fallback to web after 1.5s if app does not intercept
+    const start = Date.now();
+    window.location.href = dkAppUrl;
+    setTimeout(() => {
+      if (Date.now() - start < 2000) {
+        window.open(dkWebUrl, '_blank');
+      }
+    }, 1500);
+  } else {
+    window.open(dkWebUrl, '_blank');
+  }
+}
+
+// Native Share API to send parlay to group chat
+async function shareParlaySlip() {
+  const text = generateParlayText();
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `Undisputed Daddies Week ${parlayData?.week || 1} ATTP`,
+        text: text,
+        url: window.location.href
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        copyParlaySlip();
+      }
+    }
+  } else {
+    copyParlaySlip();
   }
 }
 
@@ -775,6 +863,11 @@ function setupEventListeners() {
   closeProfileModal.addEventListener('click', () => editProfileModal.classList.remove('open'));
   cancelProfileBtn.addEventListener('click', () => editProfileModal.classList.remove('open'));
   saveProfileBtn.addEventListener('click', saveTeamProfile);
+
+  // DraftKings Assistant Action Listeners
+  if (openDraftkingsBtn) openDraftkingsBtn.addEventListener('click', openDraftKingsBetSlip);
+  if (copySlipBtn) copySlipBtn.addEventListener('click', () => copyParlaySlip(false));
+  if (shareSlipBtn) shareSlipBtn.addEventListener('click', shareParlaySlip);
 
   profileImageInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) {

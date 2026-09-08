@@ -594,6 +594,28 @@ body {
   color: #f87171;
 }
 
+.dk-leg-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dk-mini-badge {
+  font-size: 9px;
+  font-weight: 900;
+  background: #539827;
+  color: #fff;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.dk-mini-badge:hover {
+  transform: scale(1.08);
+  opacity: 0.9;
+}
+
 .delete-pick-btn {
   background: transparent;
   border: none;
@@ -702,6 +724,74 @@ body {
   width: 1px;
   height: 32px;
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* DraftKings Assistant Action Buttons */
+.dk-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-draftkings {
+  flex: 1;
+  background: linear-gradient(135deg, #539827 0%, #3b7418 100%);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  box-shadow: 0 4px 14px rgba(83, 152, 39, 0.35);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-draftkings:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(83, 152, 39, 0.45);
+}
+
+.btn-copy-slip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-copy-slip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.btn-share-slip {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-share-slip:hover {
+  background: rgba(59, 130, 246, 0.25);
 }
 
 .payout-footer-note {

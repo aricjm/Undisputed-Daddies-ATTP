@@ -186,6 +186,7 @@ async function getWeekPlayers(targetWeek) {
         gameStatus: matchup.gameStatus,
         gameTime: matchup.gameTime,
         eventId: matchup.eventId,
+        draftkingsEventUrl: `https://sportsbook.draftkings.com/event/${matchup.eventId}`,
         odds: oddsDisplay,
         oddsValue: defaultOddsNum,
         decimalOdds: americanToDecimal(defaultOddsNum)
