@@ -59,8 +59,22 @@ async function fetchTeamRoster(teamId) {
   return data;
 }
 
+// Calculate dynamic Odds API cache TTL to conserve monthly credits:
+// - Tuesday & Wednesday: 48-hour TTL (lines are static early in the week)
+// - Thursday through Monday (Game days & injury updates): 18-hour TTL
+function getDynamicOddsTtl() {
+  const now = new Date();
+  const cstDate = new Date(now.getTime() - (5 * 3600 * 1000)); // US Central Time
+  const day = cstDate.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+
+  if (day === 2 || day === 3) {
+    return 172800; // 48 hours (Tuesday - Wednesday)
+  }
+  return 64800; // 18 hours (Thursday - Monday)
+}
+
 // Fetch real ATT odds from The Odds API for all current week games
-// Cached in Upstash Redis (24 hr TTL) and in-memory nflCache (30 min) to conserve API credits
+// Cached in Upstash Redis (dynamic 18h-48h TTL) and in-memory nflCache (30 min) to conserve API credits
 // Returns Map: playerNameLower -> { price: number, outcomeParam: string|null }
 async function fetchRealAttOdds(espnEvents) {
   const memCacheKey = 'odds_api_att_odds_v2';
@@ -184,12 +198,13 @@ async function fetchRealAttOdds(espnEvents) {
 
     console.log(`[OddsAPI] Loaded real ATT odds with DraftKings outcome IDs for ${playerOddsMap.size} players`);
 
-    // Save to Upstash Redis with 24-hour TTL (86400s) to persist across serverless instances
+    // Save to Upstash Redis with dynamic TTL (48h early week / 18h game days) to conserve monthly credits
     if (redisClient && playerOddsMap.size > 0) {
       try {
         const oddsObject = Object.fromEntries(playerOddsMap);
-        await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: 86400 });
-        console.log('[OddsAPI] Saved odds with DraftKings links to Upstash Redis (24 hr TTL)');
+        const dynamicTtl = getDynamicOddsTtl();
+        await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: dynamicTtl });
+        console.log(`[OddsAPI] Saved odds with DraftKings links to Upstash Redis (${Math.round(dynamicTtl / 3600)} hr dynamic TTL)`);
       } catch (err) {
         console.warn('[OddsAPI] Failed to save odds to Redis:', err.message);
       }
