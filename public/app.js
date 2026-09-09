@@ -23,6 +23,7 @@ const designatedBettorName = document.getElementById('designated-bettor-name');
 const designatedBettorReason = document.getElementById('designated-bettor-reason');
 const refreshScoresBtn = document.getElementById('refresh-scores-btn');
 const refreshIcon = document.getElementById('refresh-icon');
+const lastRefreshedLabel = document.getElementById('last-refreshed-label');
 
 // Parlay payout elements
 const parlayPickedCount = document.getElementById('parlay-picked-count');
@@ -151,6 +152,25 @@ async function loadParlayData() {
   }
 }
 
+// Format last scoring check timestamp for display
+function formatLastRefreshed(dateStr) {
+  if (!dateStr) return 'Never';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Never';
+    const now = new Date();
+    const diffSec = Math.round((now - d) / 1000);
+    if (diffSec < 45) return 'Just now';
+    if (diffSec < 3600) {
+      const mins = Math.max(1, Math.floor(diffSec / 60));
+      return `${mins}m ago`;
+    }
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return 'Recently';
+  }
+}
+
 // Render Parlay Tab
 function renderParlayTab(data) {
   // Update Header & Bettor
@@ -158,6 +178,11 @@ function renderParlayTab(data) {
   const bettorDisplayName = data.bettor ? (data.bettor.teamName ? `${data.bettor.teamName} (${data.bettor.fullName || data.bettor.name})` : data.bettor.name) : 'Not set';
   designatedBettorName.textContent = bettorDisplayName;
   designatedBettorReason.textContent = data.bettorReason || 'Least fantasy points scored in previous week';
+
+  // Update Last Refreshed label
+  if (lastRefreshedLabel) {
+    lastRefreshedLabel.textContent = `Last Refreshed: ${formatLastRefreshed(data.lastScoringCheck)}`;
+  }
 
   // Update Payout Card
   const parlay = data.parlay || {};
@@ -484,6 +509,9 @@ async function refreshScores() {
     const data = await res.json();
     if (data.success) {
       showToast(`Scoring refreshed: ${data.scoredCount} of ${data.totalPicks} legs scored!`);
+      if (lastRefreshedLabel) {
+        lastRefreshedLabel.textContent = 'Last Refreshed: Just now';
+      }
       await loadParlayData();
     } else {
       showToast(data.message || 'Scoring checked');
@@ -549,7 +577,7 @@ function generateParlayText() {
 
   const parlay = parlayData.parlay || {};
   const profitPerPerson = ((parseFloat(parlay.profit || '0.00')) / 10).toFixed(2);
-  let text = `🏈 UNDISPUTED DADDIES - WEEK ${parlayData.week} ATTP\n`;
+  let text = `UNDISPUTED DADDIES - WEEK ${parlayData.week} ATTP\n`;
   text += `10-Leg Anytime TD Parlay ($10 Bet)\n`;
   text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Potential Win: $${parlay.payout || '10.00'} | Profit/Person: $${profitPerPerson}\n`;
   text += `Designated Bettor: ${parlayData.bettor?.teamName || parlayData.bettor?.name} (${parlayData.bettor?.fullName || parlayData.bettor?.name})\n\n`;
