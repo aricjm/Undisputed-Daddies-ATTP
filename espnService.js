@@ -153,10 +153,21 @@ async function fetchRealAttOdds(espnEvents) {
       const isCompleted = e.status?.type?.completed === true ||
                           e.status?.type?.state === 'post' ||
                           (e.status?.type?.name || '').includes('FINAL');
-      return { home: home.toLowerCase(), away: away.toLowerCase(), isCompleted };
+      
+      const eventDate = new Date(e.date);
+      const cstDate = new Date(eventDate.getTime() - (5 * 3600 * 1000));
+      const cstDay = cstDate.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+      const detailLower = (e.status?.type?.detail || '').toLowerCase();
+      const isExcludedGameDay = (cstDay >= 3 && cstDay <= 6) ||
+                                detailLower.startsWith('wed') ||
+                                detailLower.startsWith('thu') ||
+                                detailLower.startsWith('fri') ||
+                                detailLower.startsWith('sat');
+
+      return { home: home.toLowerCase(), away: away.toLowerCase(), isCompleted, isExcludedGameDay };
     });
 
-    // Match Odds API events to ESPN events by team nickname, skipping games that already kicked off or finished
+    // Match Odds API events to ESPN events by team nickname, skipping games that already kicked off, finished, or are on excluded days (Wed/Thu/Fri/Sat)
     const matchedOddsEventIds = [];
     const nowMs = Date.now();
     for (const oe of oddsEvents) {
@@ -164,6 +175,16 @@ async function fetchRealAttOdds(espnEvents) {
       const kickoffMs = oe.commence_time ? new Date(oe.commence_time).getTime() : 0;
       if (kickoffMs && (nowMs - kickoffMs > 20 * 60 * 1000)) {
         continue;
+      }
+
+      // Skip games played on Wed/Thu/Fri/Sat since those players cannot be picked
+      if (oe.commence_time) {
+        const oeDate = new Date(oe.commence_time);
+        const oeCst = new Date(oeDate.getTime() - (5 * 3600 * 1000));
+        const oeDay = oeCst.getUTCDay();
+        if (oeDay >= 3 && oeDay <= 6) {
+          continue;
+        }
       }
 
       const oeHome = (oe.home_team || '').toLowerCase();
@@ -175,13 +196,13 @@ async function fetchRealAttOdds(espnEvents) {
         const epAwayNick = ep.away.split(' ').pop();
         return epHomeNick === oeHomeNick && epAwayNick === oeAwayNick;
       });
-      // Skip games that are already completed on ESPN
-      if (match && !match.isCompleted) {
+      // Skip games that are completed or on excluded days
+      if (match && !match.isCompleted && !match.isExcludedGameDay) {
         matchedOddsEventIds.push(oe.id);
       }
     }
 
-    console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} active/upcoming games for ATT odds`);
+    console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} eligible Sunday/Monday games for ATT odds`);
 
     // Fetch ATT props sequentially with retry logic to avoid 429 rate-limiting
     const propResults = [];
