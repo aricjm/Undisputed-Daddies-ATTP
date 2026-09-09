@@ -384,9 +384,11 @@ app.get('/api/stats', async (req, res) => {
       return stat;
     });
 
+    // Sort primarily by best hit % (winRate), then by total TDs scored, then fewest missed
     memberStatsList.sort((a, b) => {
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
       if (b.tdsScored !== a.tdsScored) return b.tdsScored - a.tdsScored;
-      return b.winRate - a.winRate;
+      return a.tdsMissed - b.tdsMissed;
     });
 
     res.json({
