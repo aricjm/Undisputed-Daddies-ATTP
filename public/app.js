@@ -210,7 +210,7 @@ function renderParlayTab(data) {
             ${isScored ? '<i data-lucide="check" style="width:12px; height:12px;"></i> TD SCORED!' : 'PENDING'}
           </span>
           <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-            <a href="https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers" target="_blank" rel="noopener" class="dk-leg-link" title="Search player on DraftKings">
+            <a href="${pick.player.draftkingsBetUrl || 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers'}" target="_blank" rel="noopener" class="dk-leg-link" title="Open player on DraftKings">
               <span class="dk-mini-badge">DK</span>
             </a>
             <button class="delete-pick-btn" onclick="removePick('${member.id}', '${member.name}')" title="Remove pick">
@@ -593,18 +593,25 @@ async function copyParlaySlip(silent = false) {
   }
 }
 
-// Open DraftKings with auto-copy and Universal Link
+// Open DraftKings with auto-copy and pre-filled bet slip Universal Link
 async function openDraftKingsBetSlip() {
-  // 1. Copy formatted parlay to clipboard so user has it ready
+  // 1. Copy formatted parlay to clipboard so user also has a backup text copy
   await copyParlaySlip(true);
 
-  showToast('Parlay copied! Opening DraftKings...');
+  // 2. Check if we have a direct DraftKings bet slip URL with pre-populated outcomes
+  const parlay = parlayData?.parlay || {};
+  let dkUrl = parlay.draftkingsParlayUrl;
+
+  if (dkUrl && dkUrl.includes('outcomes=')) {
+    showToast(`Opening DraftKings with ${parlay.outcomeCount || parlayData?.picksCount || ''} picks in bet slip!`);
+  } else {
+    showToast('Parlay copied! Opening DraftKings...');
+    dkUrl = 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
+  }
 
   // Use DraftKings Universal Link HTTPS URL:
-  // On iOS and Android with the DraftKings Sportsbook app installed, iOS/Android automatically
-  // intercepts sportsbook.draftkings.com and opens the native app with zero popup warnings.
-  // If the app is not installed, Safari opens the mobile web page cleanly.
-  const dkUrl = 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
+  // On iOS and Android with DraftKings Sportsbook installed, it intercepts sportsbook.draftkings.com
+  // and opens the native app with the betslip populated. Otherwise, it opens the web sportsbook.
   window.open(dkUrl, '_blank');
 }
 

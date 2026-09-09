@@ -184,7 +184,9 @@ function calculateParlay(picks, wager = 10) {
       totalDecimal: 1.0,
       payout: wager.toFixed(2),
       profit: '0.00',
-      legsCount: 0
+      legsCount: 0,
+      draftkingsParlayUrl: 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers',
+      outcomeCount: 0
     };
   }
 
@@ -198,12 +200,23 @@ function calculateParlay(picks, wager = 10) {
   const profit = payout - wager;
   const totalOddsAmerican = decimalToAmerican(totalDecimal);
 
+  // Extract DraftKings outcome IDs to construct one-click bet slip URL
+  const outcomeIds = picks
+    .map(p => p.player?.draftkingsOutcomeId)
+    .filter(Boolean);
+
+  const draftkingsParlayUrl = outcomeIds.length > 0
+    ? `https://sportsbook.draftkings.com/?outcomes=${outcomeIds.join('+')}`
+    : 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
+
   return {
     totalOddsAmerican,
     totalDecimal: parseFloat(totalDecimal.toFixed(4)),
     payout: payout.toFixed(2),
     profit: profit.toFixed(2),
-    legsCount: picks.length
+    legsCount: picks.length,
+    draftkingsParlayUrl,
+    outcomeCount: outcomeIds.length
   };
 }
 

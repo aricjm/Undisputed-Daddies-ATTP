@@ -60,10 +60,11 @@ async function fetchTeamRoster(teamId) {
 }
 
 // Fetch real ATT odds from The Odds API for all current week games
-// Returns Map: playerNameLower -> americanOdds (integer)
+// Cached in Upstash Redis (24 hr TTL) and in-memory nflCache (30 min) to conserve API credits
+// Returns Map: playerNameLower -> { price: number, outcomeParam: string|null }
 async function fetchRealAttOdds(espnEvents) {
-  const memCacheKey = 'odds_api_att_odds';
-  const REDIS_ODDS_KEY = 'undisputed_daddies_odds_api_odds';
+  const memCacheKey = 'odds_api_att_odds_v2';
+  const REDIS_ODDS_KEY = 'undisputed_daddies_odds_api_odds_v2';
 
   // 1. Check fast in-memory cache first
   const cachedMem = nflCache.get(memCacheKey);
@@ -74,9 +75,16 @@ async function fetchRealAttOdds(espnEvents) {
     try {
       const cachedRedis = await redisClient.get(REDIS_ODDS_KEY);
       if (cachedRedis && typeof cachedRedis === 'object') {
-        const playerOddsMap = new Map(Object.entries(cachedRedis));
+        const playerOddsMap = new Map();
+        for (const [name, val] of Object.entries(cachedRedis)) {
+          if (typeof val === 'object' && val !== null) {
+            playerOddsMap.set(name, val);
+          } else if (typeof val === 'number') {
+            playerOddsMap.set(name, { price: val, outcomeParam: null });
+          }
+        }
         if (playerOddsMap.size > 0) {
-          console.log(`[OddsAPI] Loaded ${playerOddsMap.size} players from Upstash Redis cache`);
+          console.log(`[OddsAPI] Loaded ${playerOddsMap.size} players with DraftKings links from Upstash Redis cache`);
           nflCache.set(memCacheKey, playerOddsMap, 1800);
           return playerOddsMap;
         }
@@ -126,11 +134,11 @@ async function fetchRealAttOdds(espnEvents) {
 
     console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} games for ATT odds`);
 
-    // Fetch ATT props for each matched game in parallel (1 request per game)
+    // Fetch ATT props with direct DraftKings outcome bet links (includeLinks=true)
     const propResults = await Promise.all(
       matchedOddsEventIds.map(async (oddsEventId) => {
         try {
-          const url = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/${oddsEventId}/odds?apiKey=${apiKey}&markets=player_anytime_td&bookmakers=draftkings&oddsFormat=american`;
+          const url = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/${oddsEventId}/odds?apiKey=${apiKey}&markets=player_anytime_td&bookmakers=draftkings&oddsFormat=american&includeLinks=true`;
           const res = await fetch(url);
           if (!res.ok) return null;
           return await res.json();
@@ -138,7 +146,7 @@ async function fetchRealAttOdds(espnEvents) {
       })
     );
 
-    // Build playerName -> americanOdds map from DraftKings data
+    // Build playerName -> { price, outcomeParam } map from DraftKings data
     const playerOddsMap = new Map();
     for (const result of propResults) {
       if (!result?.bookmakers) continue;
@@ -150,18 +158,25 @@ async function fetchRealAttOdds(espnEvents) {
         // player name is in description field, name field is always "Yes"
         const name = (outcome.description || outcome.name || '').toLowerCase().trim();
         const price = outcome.price;
-        if (name && price !== undefined) playerOddsMap.set(name, price);
+        let outcomeParam = null;
+        if (outcome.link) {
+          const match = outcome.link.match(/outcomes=([^&]+)/);
+          if (match) outcomeParam = match[1];
+        }
+        if (name && price !== undefined) {
+          playerOddsMap.set(name, { price, outcomeParam });
+        }
       }
     }
 
-    console.log(`[OddsAPI] Loaded real ATT odds for ${playerOddsMap.size} players`);
+    console.log(`[OddsAPI] Loaded real ATT odds with DraftKings outcome IDs for ${playerOddsMap.size} players`);
 
     // Save to Upstash Redis with 24-hour TTL (86400s) to persist across serverless instances
     if (redisClient && playerOddsMap.size > 0) {
       try {
         const oddsObject = Object.fromEntries(playerOddsMap);
         await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: 86400 });
-        console.log('[OddsAPI] Saved odds to Upstash Redis (24 hr TTL)');
+        console.log('[OddsAPI] Saved odds with DraftKings links to Upstash Redis (24 hr TTL)');
       } catch (err) {
         console.warn('[OddsAPI] Failed to save odds to Redis:', err.message);
       }
@@ -329,8 +344,10 @@ async function getWeekPlayers(targetWeek) {
       const playerFullName = athlete.fullName || athlete.displayName;
       const nameLower = playerFullName.toLowerCase().trim();
       const estimatedOdds = estimateAttOdds(pos, effectiveIndex);
-      const realOdds = realOddsMap.get(nameLower);
-      const oddsNum = realOdds !== undefined ? realOdds : estimatedOdds;
+      const realOddsEntry = realOddsMap.get(nameLower);
+      const realOddsPrice = typeof realOddsEntry === 'object' && realOddsEntry !== null ? realOddsEntry.price : realOddsEntry;
+      const outcomeParam = typeof realOddsEntry === 'object' && realOddsEntry !== null ? realOddsEntry.outcomeParam : null;
+      const oddsNum = realOddsPrice !== undefined ? realOddsPrice : estimatedOdds;
       const oddsDisplay = oddsNum > 0 ? `+${oddsNum}` : `${oddsNum}`;
 
       players.push({
@@ -352,11 +369,15 @@ async function getWeekPlayers(targetWeek) {
         gameStatus: matchup.gameStatus,
         gameTime: matchup.gameTime,
         eventId: matchup.eventId,
+        draftkingsOutcomeId: outcomeParam,
+        draftkingsBetUrl: outcomeParam
+          ? `https://sportsbook.draftkings.com/?outcomes=${outcomeParam}`
+          : `https://sportsbook.draftkings.com/event/${matchup.eventId}`,
         draftkingsEventUrl: `https://sportsbook.draftkings.com/event/${matchup.eventId}`,
         odds: oddsDisplay,
         oddsValue: oddsNum,
         decimalOdds: americanToDecimal(oddsNum),
-        oddsSource: realOdds !== undefined ? 'draftkings' : 'estimated'
+        oddsSource: realOddsPrice !== undefined ? 'draftkings' : 'estimated'
       });
     }
   }

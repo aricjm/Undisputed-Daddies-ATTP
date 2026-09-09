@@ -72,11 +72,37 @@ app.get('/api/parlay', async (req, res) => {
   try {
     const state = await getAppState();
     const members = await getEnrichedMembers();
-    const parlayCalculation = calculateParlay(state.currentWeekPicks, 10);
+
+    // Dynamically enrich picks with DraftKings outcome IDs if missing
+    let weekPlayersMap = null;
+    const enrichedPicks = await Promise.all((state.currentWeekPicks || []).map(async (p) => {
+      if (!p.player?.draftkingsOutcomeId) {
+        try {
+          if (!weekPlayersMap) {
+            const weekData = await getWeekPlayers(state.currentWeek);
+            weekPlayersMap = new Map((weekData?.players || []).map(wp => [String(wp.id), wp]));
+          }
+          const wp = weekPlayersMap.get(String(p.player?.id));
+          if (wp?.draftkingsOutcomeId) {
+            return {
+              ...p,
+              player: {
+                ...p.player,
+                draftkingsOutcomeId: wp.draftkingsOutcomeId,
+                draftkingsBetUrl: wp.draftkingsBetUrl
+              }
+            };
+          }
+        } catch { /* proceed without enrichment */ }
+      }
+      return p;
+    }));
+
+    const parlayCalculation = calculateParlay(enrichedPicks, 10);
 
     // Build status for each of the 10 members
     const memberStatuses = members.map(m => {
-      const pick = state.currentWeekPicks.find(p => p.memberId === m.id);
+      const pick = enrichedPicks.find(p => p.memberId === m.id);
       return {
         ...m,
         hasPicked: !!pick,
@@ -92,7 +118,7 @@ app.get('/api/parlay', async (req, res) => {
       bettor: currentBettorMember,
       bettorReason: state.bettorReason || '',
       members: memberStatuses,
-      picksCount: state.currentWeekPicks.length,
+      picksCount: enrichedPicks.length,
       totalMembers: members.length,
       parlay: parlayCalculation,
       lastScoringCheck: state.lastScoringCheck
@@ -179,7 +205,9 @@ app.post('/api/picks', async (req, res) => {
         opponent: player.opponent,
         odds: player.odds,
         oddsValue: player.oddsValue,
-        decimalOdds: player.decimalOdds
+        decimalOdds: player.decimalOdds,
+        draftkingsOutcomeId: player.draftkingsOutcomeId || null,
+        draftkingsBetUrl: player.draftkingsBetUrl || null
       },
       hasScored: false,
       status: 'pending',
