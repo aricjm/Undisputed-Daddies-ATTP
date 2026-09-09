@@ -123,21 +123,18 @@ function switchTab(tabId) {
   }
 }
 
-// Initial Data Loading
+// Initial Data Loading (loadParlayData already includes all 10 members with overrides, saving an API call)
 async function loadInitialData() {
-  await Promise.all([
-    loadMembers(),
-    loadParlayData()
-  ]);
+  await loadParlayData();
   refreshIcons();
 }
 
-// Fetch Members
+// Fetch Members (kept as fallback helper)
 async function loadMembers() {
   try {
     const res = await fetch('/api/members');
     const data = await res.json();
-    leagueMembers = data.members || [];
+    if (data.members) leagueMembers = data.members;
   } catch (err) {
     console.error('Failed to load members:', err);
   }
@@ -183,6 +180,10 @@ function formatPickMatchup(player) {
 
 // Render Parlay Tab
 function renderParlayTab(data) {
+  if (data.members && data.members.length > 0) {
+    leagueMembers = data.members;
+  }
+
   // Update Header & Bettor
   document.getElementById('current-week-tag').innerHTML = `<span class="pulse-dot"></span> Week ${data.week}`;
   const bettorDisplayName = data.bettor ? (data.bettor.teamName ? `${data.bettor.teamName} (${data.bettor.fullName || data.bettor.name})` : data.bettor.name) : 'Not set';
@@ -1012,8 +1013,7 @@ async function saveTeamProfile() {
     if (data.success) {
       showToast(`Updated team profile!`);
       editProfileModal.classList.remove('open');
-      await loadMembers();
-      if (currentTab === 'tab-parlay') await loadParlayData();
+      await loadParlayData();
       if (currentTab === 'tab-stats') await loadStatsData();
     } else {
       showToast(data.error || 'Failed to update profile');
