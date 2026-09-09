@@ -754,20 +754,22 @@ body {
 }
 
 .wall-members-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .wall-member-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wall-section.shame .wall-member-chip {
@@ -781,9 +783,9 @@ body {
 }
 
 .wall-chip-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -796,7 +798,7 @@ body {
 }
 
 .wall-chip-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
@@ -805,18 +807,19 @@ body {
 }
 
 .wall-chip-player {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .wall-chip-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
-  padding: 3px 6px;
-  border-radius: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
   flex-shrink: 0;
   white-space: nowrap;
 }
