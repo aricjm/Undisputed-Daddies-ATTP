@@ -134,17 +134,30 @@ async function fetchRealAttOdds(espnEvents) {
 
     console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} games for ATT odds`);
 
-    // Fetch ATT props with direct DraftKings outcome bet links (includeLinks=true)
-    const propResults = await Promise.all(
-      matchedOddsEventIds.map(async (oddsEventId) => {
+    // Fetch ATT props sequentially with retry logic to avoid 429 rate-limiting
+    const propResults = [];
+    for (const oddsEventId of matchedOddsEventIds) {
+      let result = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const url = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/${oddsEventId}/odds?apiKey=${apiKey}&markets=player_anytime_td&bookmakers=draftkings&oddsFormat=american&includeLinks=true`;
           const res = await fetch(url);
-          if (!res.ok) return null;
-          return await res.json();
-        } catch { return null; }
-      })
-    );
+          if (res.status === 429) {
+            await new Promise(r => setTimeout(r, 650 * attempt));
+            continue;
+          }
+          if (res.ok) {
+            result = await res.json();
+            break;
+          }
+        } catch (err) {
+          if (attempt === 3) break;
+          await new Promise(r => setTimeout(r, 400));
+        }
+      }
+      if (result) propResults.push(result);
+      await new Promise(r => setTimeout(r, 120));
+    }
 
     // Build playerName -> { price, outcomeParam } map from DraftKings data
     const playerOddsMap = new Map();
