@@ -8,6 +8,13 @@ let selectedPlayerForPick = null;
 let selectedMemberForPick = null;
 let currentPosFilter = 'ALL';
 
+// Client-side Tab Caching (45s TTL) to eliminate redundant server/Redis calls when switching tabs
+const TAB_CACHE_TTL = 45000;
+let lastParlayLoadTime = 0;
+let lastPlayersLoadTime = 0;
+let lastStatsLoadTime = 0;
+let cachedStatsData = null;
+
 // Helper to trigger Lucide icon rendering across dynamic DOM elements
 function refreshIcons() {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -113,13 +120,13 @@ function switchTab(tabId) {
     activePane.classList.add('active');
   }
 
-  // Reload or refresh specific views on tab open
+  // Open tab: serves from client-side memory if < 45s old, eliminating server/Redis calls
   if (tabId === 'tab-parlay') {
-    loadParlayData();
+    loadParlayData(false);
   } else if (tabId === 'tab-players') {
-    loadPlayersData();
+    loadPlayersData(false);
   } else if (tabId === 'tab-stats') {
-    loadStatsData();
+    loadStatsData(false);
   }
 }
 
@@ -140,11 +147,18 @@ async function loadMembers() {
   }
 }
 
-// Fetch Parlay & Render
-async function loadParlayData() {
+// Fetch Parlay & Render (caches for 45s unless force=true)
+async function loadParlayData(force = false) {
+  const now = Date.now();
+  if (!force && parlayData && (now - lastParlayLoadTime < TAB_CACHE_TTL)) {
+    renderParlayTab(parlayData);
+    return;
+  }
+
   try {
     const res = await fetch('/api/parlay');
     parlayData = await res.json();
+    lastParlayLoadTime = Date.now();
     renderParlayTab(parlayData);
   } catch (err) {
     parlayLegsList.innerHTML = `<div class="loading-state">Failed to load parlay data.</div>`;
@@ -339,7 +353,10 @@ async function removePick(memberId, memberName) {
     const data = await res.json();
     if (data.success) {
       showToast(`Removed pick for ${memberName}`);
-      await loadParlayData();
+      cachedStatsData = null;
+      lastStatsLoadTime = 0;
+      await loadParlayData(true);
+      await loadPlayersData(true);
       renderSimulatorTools();
       refreshIcons();
     } else {
@@ -357,14 +374,21 @@ function goToPlayerListForMember(memberId) {
   showToast(`Choose a player for ${leagueMembers.find(m => m.id === memberId)?.name || 'member'}`);
 }
 
-// Fetch and Render Players
-async function loadPlayersData() {
+// Fetch and Render Players (caches for 45s unless force=true)
+async function loadPlayersData(force = false) {
+  const now = Date.now();
+  if (!force && allPlayers.length > 0 && (now - lastPlayersLoadTime < TAB_CACHE_TTL)) {
+    applyFilters();
+    return;
+  }
+
   playerCardList.innerHTML = `<div class="loading-state"><i data-lucide="loader-2" class="spin-icon"></i> Fetching NFL rosters & Anytime TD odds...</div>`;
   refreshIcons();
   try {
     const res = await fetch('/api/players');
     const data = await res.json();
     allPlayers = data.players || [];
+    lastPlayersLoadTime = Date.now();
     applyFilters();
   } catch (err) {
     playerCardList.innerHTML = `<div class="loading-state">Failed to load NFL players. Please retry.</div>`;
@@ -537,9 +561,11 @@ async function confirmPick() {
       pickModal.classList.remove('open');
       selectedPlayerForPick = null;
       selectedMemberForPick = null;
-      // Refresh parlay and available players list
-      await loadParlayData();
-      await loadPlayersData();
+      // Refresh parlay and available players list with fresh server data
+      cachedStatsData = null;
+      lastStatsLoadTime = 0;
+      await loadParlayData(true);
+      await loadPlayersData(true);
       switchTab('tab-parlay');
     } else {
       showToast(data.error || 'Failed to lock in pick');
@@ -586,7 +612,9 @@ async function refreshScores() {
       if (lastRefreshedLabel) {
         lastRefreshedLabel.textContent = 'Last Refreshed: Just now';
       }
-      await loadParlayData();
+      cachedStatsData = null;
+      lastStatsLoadTime = 0;
+      await loadParlayData(true);
     } else {
       showToast(data.message || 'Scoring checked');
     }
@@ -792,7 +820,9 @@ async function simulatePickStatus(memberId, status) {
     const data = await res.json();
     if (data.success) {
       showToast(`Set pick to ${status.toUpperCase()}!`);
-      await loadParlayData();
+      cachedStatsData = null;
+      lastStatsLoadTime = 0;
+      await loadParlayData(true);
       renderSimulatorTools();
     } else {
       showToast(data.error || 'Failed to simulate');
@@ -939,7 +969,9 @@ async function saveWeekOverride() {
     const data = await res.json();
     if (data.success) {
       showToast(data.message || `Switched to Week ${data.currentWeek}!`);
-      await Promise.all([loadParlayData(), loadPlayersData()]);
+      cachedStatsData = null;
+      lastStatsLoadTime = 0;
+      await Promise.all([loadParlayData(true), loadPlayersData(true)]);
       openAdminBettorModal();
     } else {
       showToast(data.error || 'Failed to update week');
@@ -1013,8 +1045,10 @@ async function saveTeamProfile() {
     if (data.success) {
       showToast(`Updated team profile!`);
       editProfileModal.classList.remove('open');
-      await loadParlayData();
-      if (currentTab === 'tab-stats') await loadStatsData();
+      cachedStatsData = null;
+      lastStatsLoadTime = 0;
+      await loadParlayData(true);
+      if (currentTab === 'tab-stats') await loadStatsData(true);
     } else {
       showToast(data.error || 'Failed to update profile');
     }
@@ -1027,14 +1061,22 @@ async function saveTeamProfile() {
   }
 }
 
-// Stats & Leaderboard
-async function loadStatsData() {
+// Stats & Leaderboard (caches for 45s unless force=true)
+async function loadStatsData(force = false) {
+  const now = Date.now();
+  if (!force && cachedStatsData && (now - lastStatsLoadTime < TAB_CACHE_TTL)) {
+    renderStatsTab(cachedStatsData);
+    return;
+  }
+
   leaderboardContainer.innerHTML = `<div class="loading-state"><i data-lucide="loader-2" class="spin-icon"></i> Calculating league records...</div>`;
   refreshIcons();
   try {
     const res = await fetch('/api/stats');
     const data = await res.json();
-    renderStatsTab(data);
+    cachedStatsData = data;
+    lastStatsLoadTime = Date.now();
+    renderStatsTab(cachedStatsData);
   } catch (err) {
     leaderboardContainer.innerHTML = `<div class="loading-state">Failed to load league stats.</div>`;
     console.error(err);
