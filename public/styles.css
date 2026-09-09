@@ -995,9 +995,20 @@ body {
   color: var(--text-muted);
   text-align: center;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 6px;
+  line-height: 1.4;
+  padding: 0 6px;
+}
+
+.payout-footer-note i,
+.payout-footer-note svg {
+  width: 13px;
+  height: 13px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* Tab 2: Player List Controls */
