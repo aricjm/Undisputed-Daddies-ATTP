@@ -4,8 +4,9 @@ const NodeCache = require('node-cache');
 
 // In-memory cache with TTLs for live NFL data (scoreboard & rosters)
 const nflCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
-// Fallback in-memory cache if Upstash Redis env vars are not set (e.g. offline local dev)
-const localAppStateCache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
+// Short in-memory cache for app state (20 seconds) to cut down redundant Redis reads on warm serverless instances
+const APP_STATE_MEM_TTL = 20;
+const localAppStateCache = new NodeCache({ stdTTL: APP_STATE_MEM_TTL, checkperiod: 30 });
 
 // Initialize Upstash Redis client if credentials exist in environment
 let redisClient = null;
@@ -70,8 +71,14 @@ function getInitialState() {
   };
 }
 
-// Fetch app state from Upstash Redis (or in-memory fallback)
-async function getAppState() {
+// Fetch app state with 20s in-memory caching to minimize Upstash Redis reads
+async function getAppState(forceFresh = false) {
+  // 1. Check in-memory cache first if not forcing fresh fetch
+  if (!forceFresh) {
+    const cachedMem = localAppStateCache.get('app_state');
+    if (cachedMem) return cachedMem;
+  }
+
   let state = null;
 
   if (redisClient) {
@@ -87,7 +94,7 @@ async function getAppState() {
 
   if (!state) {
     if (!localAppStateCache.has('app_state')) {
-      localAppStateCache.set('app_state', getInitialState());
+      localAppStateCache.set('app_state', getInitialState(), APP_STATE_MEM_TTL);
     }
     state = localAppStateCache.get('app_state');
   }
@@ -114,6 +121,8 @@ async function getAppState() {
     state.lastScoringCheck = null;
 
     await saveAppState(state);
+  } else {
+    localAppStateCache.set('app_state', state, APP_STATE_MEM_TTL);
   }
 
   return state;
@@ -135,7 +144,7 @@ async function getEnrichedMembers(passedState = null) {
 
 // Persist app state to Upstash Redis and in-memory cache
 async function saveAppState(state) {
-  localAppStateCache.set('app_state', state);
+  localAppStateCache.set('app_state', state, APP_STATE_MEM_TTL);
 
   if (redisClient) {
     try {
@@ -148,9 +157,9 @@ async function saveAppState(state) {
   return state;
 }
 
-// Update helper function
+// Update helper function - always reads fresh before mutating to prevent race conditions
 async function updateAppState(updater) {
-  const state = await getAppState();
+  const state = await getAppState(true);
   const newState = typeof updater === 'function' ? updater(state) : { ...state, ...updater };
   await saveAppState(newState);
   return newState;
