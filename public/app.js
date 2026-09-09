@@ -201,7 +201,7 @@ function renderParlayTab(data) {
         let bannerHtml = `
           <div class="status-banner-header">
             <div class="status-banner-title">
-              <i data-lucide="alert-octagon"></i>
+              <i data-lucide="skull"></i>
               <span>BUSTED!</span>
             </div>
             <div class="status-banner-sub">${missedMembers.length} leg${missedMembers.length > 1 ? 's' : ''} failed to score TD</div>
@@ -209,7 +209,6 @@ function renderParlayTab(data) {
 
           <div class="wall-section shame">
             <div class="wall-title">
-              <i data-lucide="skull"></i>
               <span>WEEK ${data.week} WALL OF SHAME</span>
             </div>
             <div class="wall-members-grid">
@@ -231,7 +230,6 @@ function renderParlayTab(data) {
           bannerHtml += `
             <div class="wall-section fame">
               <div class="wall-title">
-                <i data-lucide="trophy"></i>
                 <span>WEEK ${data.week} WALL OF FAME</span>
               </div>
               <div class="wall-members-grid">
@@ -251,15 +249,46 @@ function renderParlayTab(data) {
         }
 
         statusBanner.innerHTML = bannerHtml;
+      } else if (scoredMembers.length === 10) {
+        statusBanner.className = 'parlay-status-banner accomplished';
+        let bannerHtml = `
+          <div class="status-banner-header">
+            <div class="status-banner-title">
+              <i data-lucide="trophy"></i>
+              <span>MISSION ACCOMPLISHED!</span>
+            </div>
+            <div class="status-banner-sub">ALL 10 LEGS HIT! PARLAY CASHES! 💰</div>
+          </div>
+
+          <div class="wall-section fame">
+            <div class="wall-title">
+              <i data-lucide="crown"></i>
+              <span>WEEK ${data.week} WALL OF FAME (PERFECT 10/10)</span>
+            </div>
+            <div class="wall-members-grid">
+              ${scoredMembers.map(m => `
+                <div class="wall-member-chip">
+                  <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
+                  <div class="wall-chip-info">
+                    <div class="wall-chip-name">${m.teamName || m.name}</div>
+                    <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                  </div>
+                  <span class="wall-chip-badge scored">TD SCORED!</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        statusBanner.innerHTML = bannerHtml;
       } else {
         statusBanner.className = 'parlay-status-banner alive';
         let bannerHtml = `
           <div class="status-banner-header">
             <div class="status-banner-title">
               <i data-lucide="zap"></i>
-              <span>ALIVE!</span>
+              <span>Parlay ALIVE!</span>
             </div>
-            <div class="status-banner-sub">All active legs still live! (${scoredMembers.length}/${pickedMembers.length} TDs hit)</div>
+            <div class="status-banner-sub">(${scoredMembers.length}/${pickedMembers.length} TDs hit)</div>
           </div>
         `;
 
