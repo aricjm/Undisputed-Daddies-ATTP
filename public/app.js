@@ -171,6 +171,13 @@ function formatLastRefreshed(dateStr) {
   }
 }
 
+// Format player name with team and weekly matchup (e.g. Derrick Henry (BAL @ IND))
+function formatPickMatchup(player) {
+  if (!player) return '';
+  const matchupStr = player.matchup ? `${player.team} ${player.matchup}` : (player.team || '');
+  return `${player.name} (${matchupStr})`;
+}
+
 // Render Parlay Tab
 function renderParlayTab(data) {
   // Update Header & Bettor
@@ -217,7 +224,7 @@ function renderParlayTab(data) {
                   <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
                   <div class="wall-chip-info">
                     <div class="wall-chip-name">${m.teamName || m.name}</div>
-                    <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                    <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
                   </div>
                   <span class="wall-chip-badge missed">NO TD (FINAL)</span>
                 </div>
@@ -238,7 +245,7 @@ function renderParlayTab(data) {
                     <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
                     <div class="wall-chip-info">
                       <div class="wall-chip-name">${m.teamName || m.name}</div>
-                      <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                      <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
                     </div>
                     <span class="wall-chip-badge scored">TD SCORED!</span>
                   </div>
@@ -257,7 +264,6 @@ function renderParlayTab(data) {
               <i data-lucide="trophy"></i>
               <span>MISSION ACCOMPLISHED!</span>
             </div>
-            <div class="status-banner-sub">ALL 10 LEGS HIT! PARLAY CASHES! 💰</div>
           </div>
 
           <div class="wall-section fame">
@@ -271,7 +277,7 @@ function renderParlayTab(data) {
                   <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
                   <div class="wall-chip-info">
                     <div class="wall-chip-name">${m.teamName || m.name}</div>
-                    <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                    <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
                   </div>
                   <span class="wall-chip-badge scored">TD SCORED!</span>
                 </div>
@@ -305,7 +311,7 @@ function renderParlayTab(data) {
                     <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
                     <div class="wall-chip-info">
                       <div class="wall-chip-name">${m.teamName || m.name}</div>
-                      <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                      <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
                     </div>
                     <span class="wall-chip-badge scored">TD SCORED!</span>
                   </div>
