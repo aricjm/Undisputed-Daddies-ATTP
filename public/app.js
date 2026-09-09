@@ -46,7 +46,7 @@ const cancelPickBtn = document.getElementById('cancel-pick-btn');
 const closePickModal = document.getElementById('close-pick-modal');
 
 const bettorModal = document.getElementById('bettor-modal');
-const openBettorModal = document.getElementById('open-bettor-modal');
+const bettorBanner = document.getElementById('bettor-banner');
 const closeBettorModal = document.getElementById('close-bettor-modal');
 const cancelBettorBtn = document.getElementById('cancel-bettor-btn');
 const saveBettorBtn = document.getElementById('save-bettor-btn');
@@ -1028,8 +1028,23 @@ function setupEventListeners() {
   cancelPickBtn.addEventListener('click', () => pickModal.classList.remove('open'));
   confirmPickBtn.addEventListener('click', confirmPick);
 
-  // Bettor Modal
-  openBettorModal.addEventListener('click', openAdminBettorModal);
+  // Bettor Modal - Opened via Triple Click on Bettor Banner
+  if (bettorBanner) {
+    let clickCount = 0;
+    let clickTimer = null;
+    bettorBanner.addEventListener('click', () => {
+      clickCount++;
+      if (clickCount === 1) {
+        clickTimer = setTimeout(() => {
+          clickCount = 0;
+        }, 500);
+      } else if (clickCount === 3) {
+        clearTimeout(clickTimer);
+        clickCount = 0;
+        openAdminBettorModal();
+      }
+    });
+  }
   closeBettorModal.addEventListener('click', () => bettorModal.classList.remove('open'));
   cancelBettorBtn.addEventListener('click', () => bettorModal.classList.remove('open'));
   saveBettorBtn.addEventListener('click', saveBettorDesignation);
