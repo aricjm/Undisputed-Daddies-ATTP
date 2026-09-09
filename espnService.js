@@ -1,4 +1,4 @@
-const { nflCache, redisClient, americanToDecimal } = require('./cache');
+const { nflCache, redisClient, americanToDecimal, getAppState } = require('./cache');
 
 // Baseline fallback touchdown odds based on position and ranking
 // Used to realistically estimate ATT lines if ESPN/DraftKings feed does not have individual player prop lines published
@@ -108,6 +108,26 @@ async function fetchRealAttOdds(espnEvents) {
     } catch (err) {
       console.warn('[OddsAPI] Failed reading from Redis cache, proceeding to fetch:', err.message);
     }
+  }
+
+  // If all 10 picks are already locked in for this week, freeze existing odds to save API credits
+  try {
+    const appState = await getAppState();
+    if (appState?.currentWeekPicks?.length >= 10 && previousCachedRedis) {
+      console.log('[OddsAPI] All 10 picks locked in for week — freezing existing odds cache to save API credits');
+      const frozenMap = new Map();
+      for (const [name, val] of Object.entries(previousCachedRedis)) {
+        if (typeof val === 'object' && val !== null) {
+          frozenMap.set(name, val);
+        } else if (typeof val === 'number') {
+          frozenMap.set(name, { price: val, outcomeParam: null });
+        }
+      }
+      nflCache.set(memCacheKey, frozenMap, 86400); // 24h memory cache
+      return frozenMap;
+    }
+  } catch (err) {
+    console.warn('[OddsAPI] Error checking picks status:', err.message);
   }
 
   const apiKey = process.env.ODDS_API_KEY;
