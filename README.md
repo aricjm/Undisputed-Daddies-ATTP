@@ -1,4 +1,4 @@
-# Undisputed Daddies 10-Leg Anytime TD Parlay (ATTP)
+# Undisputed Daddies 10-Leg Anytime TD Parlay
 
 A responsive mobile-first web app built for the 10-team **Undisputed Daddies** fantasy football league to build their weekly 10-leg Anytime Touchdown (ATT) parlay.
 
