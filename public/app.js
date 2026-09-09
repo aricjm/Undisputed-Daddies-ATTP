@@ -637,12 +637,12 @@ function setupPullToRefresh() {
   let startY = 0;
   let currentY = 0;
   let isPulling = false;
-  const PULL_THRESHOLD = 60;
-  const MAX_PULL = 80;
+  const PULL_THRESHOLD = 110;
+  const MAX_PULL = 90;
 
   window.addEventListener('touchstart', (e) => {
     // Only engage when scrolled to the top
-    if (window.scrollY <= 4 && !refreshScoresBtn.disabled) {
+    if (window.scrollY <= 2 && !refreshScoresBtn.disabled) {
       startY = e.touches[0].clientY;
       currentY = startY;
       isPulling = true;
@@ -656,16 +656,16 @@ function setupPullToRefresh() {
     currentY = e.touches[0].clientY;
     const diff = currentY - startY;
 
-    if (diff > 0 && window.scrollY <= 4) {
+    if (diff > 0 && window.scrollY <= 2) {
       const pullDist = Math.min(diff * 0.45, MAX_PULL);
       indicator.classList.add('pulling');
       indicator.style.height = `${pullDist}px`;
-      indicator.style.opacity = `${Math.min(pullDist / 35, 1)}`;
+      indicator.style.opacity = `${Math.min(pullDist / 50, 1)}`;
 
       const rotation = Math.min((pullDist / PULL_THRESHOLD) * 360, 360);
       if (icon) icon.style.transform = `rotate(${rotation}deg)`;
 
-      if (pullDist >= 40) {
+      if (pullDist >= 60) {
         if (text) text.textContent = 'Release to refresh';
       } else {
         if (text) text.textContent = 'Pull to refresh';
@@ -682,7 +682,8 @@ function setupPullToRefresh() {
     isPulling = false;
     indicator.classList.remove('pulling');
 
-    if (diff * 0.45 >= 40 && window.scrollY <= 10) {
+    // Requires deliberate deep pull (diff * 0.45 >= 60, i.e. 135px finger pull)
+    if (diff * 0.45 >= 60 && window.scrollY <= 5) {
       indicator.classList.add('refreshing');
       indicator.style.height = '46px';
       indicator.style.opacity = '1';
@@ -708,10 +709,10 @@ function setupPullToRefresh() {
     currentY = 0;
   });
 
-  // Detect iOS Safari / Chrome elastic rubber-band overscroll pull down (revealing black above header)
+  // Detect iOS Safari / Chrome elastic rubber-band overscroll pull down (requires deep pull of -85px or more)
   let overscrollTriggered = false;
   window.addEventListener('scroll', () => {
-    if (window.scrollY < -35 && !refreshScoresBtn.disabled && !overscrollTriggered) {
+    if (window.scrollY < -85 && !refreshScoresBtn.disabled && !overscrollTriggered) {
       overscrollTriggered = true;
       refreshScores();
       setTimeout(() => {
