@@ -408,14 +408,16 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Giant Icon Profile Modal */
-#edit-profile-modal {
+/* Centered Popup Modals (Edit Profile & Lock Pick) */
+#edit-profile-modal,
+#pick-modal {
   align-items: center;
   justify-content: center;
   padding: 16px;
 }
 
-#edit-profile-modal .modal-content {
+#edit-profile-modal .modal-content,
+#pick-modal .modal-content {
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
@@ -425,17 +427,20 @@ body {
   overflow: visible;
 }
 
-#edit-profile-modal.open .modal-content {
+#edit-profile-modal.open .modal-content,
+#pick-modal.open .modal-content {
   transform: translateY(0) scale(1);
 }
 
-#edit-profile-modal .modal-body {
+#edit-profile-modal .modal-body,
+#pick-modal .modal-body {
   overflow: visible;
   flex: unset;
   margin-bottom: 14px;
 }
 
-#edit-profile-modal .modal-footer {
+#edit-profile-modal .modal-footer,
+#pick-modal .modal-footer {
   padding-top: 4px;
 }
 
@@ -1358,8 +1363,8 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1368,19 +1373,21 @@ body {
 .member-selector-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
 
 .member-select-option {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 8px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   transition: all 0.15s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .member-select-option.selected {

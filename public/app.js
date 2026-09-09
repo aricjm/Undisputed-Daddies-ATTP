@@ -234,7 +234,7 @@ function renderParlayTab(data) {
                 <i data-lucide="edit-3" style="width:12px; height:12px;"></i>
               </button>
             </div>
-            <div class="member-subname">${member.fullName ? `${member.fullName} (${member.name})` : member.name}</div>
+            <div class="member-subname">${member.fullName ? `${member.fullName}` : member.name}</div>
             <div class="no-pick-label">Has not selected a player yet</div>
           </div>
         </div>
@@ -408,9 +408,9 @@ function openPickModalForPlayer(playerId) {
       <img src="${memberImg}" class="member-modal-avatar-img" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
       <div style="display:flex; flex-direction:column; min-width:0; flex:1;">
         <div style="font-weight:700; color:${alreadyPicked ? '#64748b' : '#fff'}; font-size:12px; display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          ${m.teamName || m.name} ${m.isAdmin ? '<i data-lucide="crown" style="width:11px; height:11px; color:#f59e0b; flex-shrink:0;"></i>' : ''}
+          ${m.teamName || m.name}
         </div>
-        <div style="font-size:10px; color:#94a3b8;">${m.fullName || m.name}</div>
+        <div style="font-size:10px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.fullName || m.name}</div>
       </div>
       ${alreadyPicked ? '<span style="font-size:9px; color:#ef4444; margin-left:auto; font-weight:700; flex-shrink:0;">PICKED</span>' : ''}
     `;
@@ -657,7 +657,7 @@ function openProfileModal(memberId) {
   activeEditingMemberId = member.id;
   currentEditingImageData = member.image || `/images/${member.id}.png`;
 
-  profileMemberOwnerName.textContent = `Team of ${member.fullName || member.name} (${member.name})`;
+  profileMemberOwnerName.textContent = `Team of ${member.fullName || member.name}`;
   profileTeamNameInput.value = member.teamName || member.name;
   profilePreviewImg.src = currentEditingImageData;
   profileImageUrlInput.value = '';
@@ -767,7 +767,7 @@ function renderStatsTab(data) {
           <img src="${memberImg}" class="member-stat-avatar-img clickable" alt="${item.member.name}" onclick="openProfileModal('${item.member.id}')" title="Click to edit profile" onerror="this.onerror=null; this.src='/images/${item.member.id}.png';">
           <div style="display:flex; flex-direction:column;">
             <div class="stat-user-name clickable" onclick="openProfileModal('${item.member.id}')" title="Click to edit team name" style="display:flex; align-items:center; gap:6px;">
-              ${item.member.teamName || item.member.name} ${item.member.isAdmin ? '<i data-lucide="crown" style="width:13px; height:13px; color:#f59e0b;"></i>' : ''}
+              ${item.member.teamName || item.member.name}
               <button class="member-profile-edit-btn" onclick="openProfileModal('${item.member.id}')"><i data-lucide="edit-3" style="width:11px; height:11px;"></i></button>
             </div>
             <div style="font-size:11px; color:#94a3b8;">${item.member.fullName ? `${item.member.fullName} (${item.member.name})` : item.member.name}</div>
