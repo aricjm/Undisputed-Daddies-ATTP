@@ -311,6 +311,13 @@ async function getWeekPlayers(targetWeek) {
     const homeTeam = competitors.find(c => c.homeAway === 'home');
     const awayTeam = competitors.find(c => c.homeAway === 'away');
 
+    // Check if game is played on Wednesday or Thursday (TNF / rare WNF)
+    const eventDate = new Date(event.date);
+    const cstDate = new Date(eventDate.getTime() - (5 * 3600 * 1000));
+    const cstDay = cstDate.getUTCDay(); // 3 = Wednesday, 4 = Thursday
+    const detailLower = (event.status?.type?.detail || '').toLowerCase();
+    const isEarlyWeekdayGame = cstDay === 3 || cstDay === 4 || detailLower.startsWith('wed') || detailLower.startsWith('thu');
+
     if (homeTeam && awayTeam) {
       matchupsByTeamId[homeTeam.team.id] = {
         matchup: `vs ${awayTeam.team.abbreviation}`,
@@ -320,7 +327,8 @@ async function getWeekPlayers(targetWeek) {
         isHome: true,
         gameStatus: event.status?.type?.detail || event.status?.type?.description || 'Upcoming',
         gameTime: event.date,
-        eventId: event.id
+        eventId: event.id,
+        isEarlyWeekdayGame
       };
       matchupsByTeamId[awayTeam.team.id] = {
         matchup: `@ ${homeTeam.team.abbreviation}`,
@@ -330,7 +338,8 @@ async function getWeekPlayers(targetWeek) {
         isHome: false,
         gameStatus: event.status?.type?.detail || event.status?.type?.description || 'Upcoming',
         gameTime: event.date,
-        eventId: event.id
+        eventId: event.id,
+        isEarlyWeekdayGame
       };
       teamMeta[homeTeam.team.id] = homeTeam.team;
       teamMeta[awayTeam.team.id] = awayTeam.team;
@@ -392,6 +401,11 @@ async function getWeekPlayers(targetWeek) {
     const roster = rosters[i];
     const matchup = matchupsByTeamId[teamId];
     const team = teamMeta[teamId];
+
+    // Exclude players playing in Thursday Night Football or Wednesday games
+    if (matchup?.isEarlyWeekdayGame) {
+      continue;
+    }
 
     if (!roster || !roster.athletes) continue;
 
