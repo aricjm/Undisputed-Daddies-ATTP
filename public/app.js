@@ -552,10 +552,30 @@ async function confirmPick() {
   }
 }
 
+// Rate limit: 1 refresh per minute (60,000 ms) to conserve Upstash Redis commands
+let lastClientRefreshTime = 0;
+
 // Refresh live scoring status
 async function refreshScores() {
   if (refreshIcon) refreshIcon.classList.add('spin-icon');
   refreshScoresBtn.disabled = true;
+
+  const now = Date.now();
+  const timeSinceLast = now - lastClientRefreshTime;
+
+  // If clicked again within 1 minute, simulate the refresh animation but do nothing to save Redis commands
+  if (timeSinceLast < 60000 && lastClientRefreshTime > 0) {
+    await new Promise(r => setTimeout(r, 650));
+    if (lastRefreshedLabel) {
+      lastRefreshedLabel.textContent = 'Last Refreshed: Just now';
+    }
+    if (refreshIcon) refreshIcon.classList.remove('spin-icon');
+    refreshScoresBtn.disabled = false;
+    refreshIcons();
+    return;
+  }
+
+  lastClientRefreshTime = now;
 
   try {
     const res = await fetch('/api/parlay/refresh', { method: 'POST' });

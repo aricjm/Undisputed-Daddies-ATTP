@@ -245,6 +245,23 @@ app.post('/api/parlay/refresh', async (req, res) => {
       });
     }
 
+    // Rate-limit refresh: if refreshed within last 60 seconds, return current state without writing to Redis
+    const now = Date.now();
+    const lastCheckMs = state.lastScoringCheck ? new Date(state.lastScoringCheck).getTime() : 0;
+    if (now - lastCheckMs < 60000 && lastCheckMs > 0) {
+      const scoredCount = state.currentWeekPicks.filter(p => p.hasScored).length;
+      return res.json({
+        success: true,
+        scoredCount,
+        totalPicks: state.currentWeekPicks.length,
+        allWon: state.currentWeekPicks.length === 10 && scoredCount === 10,
+        picks: state.currentWeekPicks,
+        parlay: calculateParlay(state.currentWeekPicks, 10),
+        lastScoringCheck: state.lastScoringCheck,
+        cached: true
+      });
+    }
+
     const updatedPicks = await checkPlayerScoringStatus(state.currentWeekPicks, state.currentWeek);
     state.currentWeekPicks = updatedPicks;
     state.lastScoringCheck = new Date().toISOString();
