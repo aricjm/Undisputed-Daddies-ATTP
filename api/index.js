@@ -48,7 +48,7 @@ app.post('/api/members/:memberId', async (req, res) => {
 
     await updateAppState(state);
 
-    const updatedMembers = await getEnrichedMembers();
+    const updatedMembers = await getEnrichedMembers(state);
     const updatedMember = updatedMembers.find(m => m.id === memberId);
 
     res.json({
@@ -64,7 +64,7 @@ app.post('/api/members/:memberId', async (req, res) => {
 app.get('/api/parlay', async (req, res) => {
   try {
     const state = await getAppState();
-    const members = await getEnrichedMembers();
+    const members = await getEnrichedMembers(state);
 
     // Dynamically enrich picks with DraftKings outcome IDs if missing
     let weekPlayersMap = null;
@@ -406,7 +406,7 @@ app.post('/api/admin/simulate-td', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
   try {
     const state = await getAppState();
-    const members = await getEnrichedMembers();
+    const members = await getEnrichedMembers(state);
     const statsByMember = {};
 
     for (const m of members) {

@@ -120,8 +120,8 @@ async function getAppState() {
 }
 
 // Get members enriched with any dynamic user overrides
-async function getEnrichedMembers() {
-  const state = await getAppState();
+async function getEnrichedMembers(passedState = null) {
+  const state = passedState || await getAppState();
   const overrides = state.memberOverrides || {};
   return LEAGUE_MEMBERS.map(m => {
     const override = overrides[m.id] || {};
