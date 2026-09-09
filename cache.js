@@ -37,7 +37,7 @@ const LEAGUE_MEMBERS = [
   { id: 'nate', name: 'Nate', fullName: 'Nate Winegarden', teamName: "Poepsel's Posse", isAdmin: false, image: '/images/nate.png' },
   { id: 'grady', name: 'Grady', fullName: 'Danny Grady', teamName: 'Our comissioner is a dictator', isAdmin: false, image: '/images/grady.png' },
   { id: 'weddick', name: 'Weddick', fullName: 'Danny Weddick', teamName: 'Real Champ', isAdmin: false, image: '/images/weddick.png' },
-  { id: 'swehla', name: 'Swehla', fullName: 'Zach Swehla', teamName: 'Champ', isAdmin: false, image: '/images/swehla.png' },
+  { id: 'swehla', name: 'Swehla', fullName: 'Zach Swehla', teamName: 'Unsolicited Dak Pics', isAdmin: false, image: '/images/swehla.png' },
   { id: 'svatos', name: 'Svatos', fullName: 'Austin Svatos', teamName: 'Pardon My Snake', isAdmin: false, image: '/images/svatos.png' }
 ];
 
