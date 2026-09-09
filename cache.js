@@ -103,7 +103,7 @@ async function getAppState() {
         memberId: p.memberId,
         memberName: p.memberName,
         player: p.player,
-        result: p.hasScored ? 'scored' : 'missed'
+        result: (p.hasScored || p.status === 'scored') ? 'scored' : 'missed'
       }));
     }
 
