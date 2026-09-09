@@ -156,12 +156,12 @@ async function fetchRealAttOdds(espnEvents) {
 
     console.log(`[OddsAPI] Loaded real ATT odds for ${playerOddsMap.size} players`);
 
-    // Save to Upstash Redis with 2-hour TTL (7200s) to persist across serverless instances
+    // Save to Upstash Redis with 24-hour TTL (86400s) to persist across serverless instances
     if (redisClient && playerOddsMap.size > 0) {
       try {
         const oddsObject = Object.fromEntries(playerOddsMap);
-        await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: 7200 });
-        console.log('[OddsAPI] Saved odds to Upstash Redis (2 hr TTL)');
+        await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: 86400 });
+        console.log('[OddsAPI] Saved odds to Upstash Redis (24 hr TTL)');
       } catch (err) {
         console.warn('[OddsAPI] Failed to save odds to Redis:', err.message);
       }
