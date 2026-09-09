@@ -348,6 +348,13 @@ body {
   background: rgba(59, 130, 246, 0.25);
 }
 
+/* Hide Refresh button on phones/mobile screens - pull down is used instead */
+@media (max-width: 767px) {
+  .btn-refresh {
+    display: none !important;
+  }
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: #fff;
