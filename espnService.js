@@ -1,4 +1,4 @@
-const { nflCache, americanToDecimal } = require('./cache');
+const { nflCache, redisClient, americanToDecimal } = require('./cache');
 
 // Baseline fallback touchdown odds based on position and ranking
 // Used to realistically estimate ATT lines if ESPN/DraftKings feed does not have individual player prop lines published
@@ -62,9 +62,29 @@ async function fetchTeamRoster(teamId) {
 // Fetch real ATT odds from The Odds API for all current week games
 // Returns Map: playerNameLower -> americanOdds (integer)
 async function fetchRealAttOdds(espnEvents) {
-  const cacheKey = 'odds_api_att_odds';
-  const cached = nflCache.get(cacheKey);
-  if (cached) return cached;
+  const memCacheKey = 'odds_api_att_odds';
+  const REDIS_ODDS_KEY = 'undisputed_daddies_odds_api_odds';
+
+  // 1. Check fast in-memory cache first
+  const cachedMem = nflCache.get(memCacheKey);
+  if (cachedMem) return cachedMem;
+
+  // 2. Check persistent Upstash Redis cache (survives Vercel cold starts)
+  if (redisClient) {
+    try {
+      const cachedRedis = await redisClient.get(REDIS_ODDS_KEY);
+      if (cachedRedis && typeof cachedRedis === 'object') {
+        const playerOddsMap = new Map(Object.entries(cachedRedis));
+        if (playerOddsMap.size > 0) {
+          console.log(`[OddsAPI] Loaded ${playerOddsMap.size} players from Upstash Redis cache`);
+          nflCache.set(memCacheKey, playerOddsMap, 1800);
+          return playerOddsMap;
+        }
+      }
+    } catch (err) {
+      console.warn('[OddsAPI] Failed reading from Redis cache, proceeding to fetch:', err.message);
+    }
+  }
 
   const apiKey = process.env.ODDS_API_KEY;
   if (!apiKey) {
@@ -135,7 +155,19 @@ async function fetchRealAttOdds(espnEvents) {
     }
 
     console.log(`[OddsAPI] Loaded real ATT odds for ${playerOddsMap.size} players`);
-    nflCache.set(cacheKey, playerOddsMap, 1800); // 30 min cache
+
+    // Save to Upstash Redis with 2-hour TTL (7200s) to persist across serverless instances
+    if (redisClient && playerOddsMap.size > 0) {
+      try {
+        const oddsObject = Object.fromEntries(playerOddsMap);
+        await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: 7200 });
+        console.log('[OddsAPI] Saved odds to Upstash Redis (2 hr TTL)');
+      } catch (err) {
+        console.warn('[OddsAPI] Failed to save odds to Redis:', err.message);
+      }
+    }
+
+    nflCache.set(memCacheKey, playerOddsMap, 1800); // 30 min cache
     return playerOddsMap;
   } catch (err) {
     console.warn('[OddsAPI] Error fetching ATT odds:', err.message);
