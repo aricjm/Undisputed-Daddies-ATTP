@@ -430,6 +430,39 @@ async function checkPlayerScoringStatus(picks, targetWeek) {
 
   const summaries = await Promise.all(summaryPromises);
 
+  // Track games that have gone final (completed)
+  const completedTeamIds = new Set();
+  const completedTeamAbbrs = new Set();
+  const completedEventIds = new Set();
+
+  for (const event of scoreboard.events || []) {
+    const isCompleted = event.status?.type?.completed === true ||
+                        event.status?.type?.state === 'post' ||
+                        (event.status?.type?.name || '').includes('FINAL');
+    if (isCompleted) {
+      if (event.id) completedEventIds.add(String(event.id));
+      for (const comp of event.competitions?.[0]?.competitors || []) {
+        if (comp.team?.id) completedTeamIds.add(String(comp.team.id));
+        if (comp.team?.abbreviation) completedTeamAbbrs.add(comp.team.abbreviation.toLowerCase());
+      }
+    }
+  }
+
+  for (const sum of summaries) {
+    if (!sum) continue;
+    const headerComp = sum.header?.competitions?.[0];
+    const isCompleted = headerComp?.status?.type?.completed === true ||
+                        headerComp?.status?.type?.state === 'post' ||
+                        (headerComp?.status?.type?.name || '').includes('FINAL');
+    if (isCompleted) {
+      if (headerComp.id) completedEventIds.add(String(headerComp.id));
+      for (const comp of headerComp.competitors || []) {
+        if (comp.team?.id) completedTeamIds.add(String(comp.team.id));
+        if (comp.team?.abbreviation) completedTeamAbbrs.add(comp.team.abbreviation.toLowerCase());
+      }
+    }
+  }
+
   // Extract all touchdown scoring plays
   const tdScorers = [];
   for (const sum of summaries) {
@@ -479,11 +512,26 @@ async function checkPlayerScoringStatus(picks, targetWeek) {
       return false;
     });
 
+    const playerTeamId = String(pick.player?.teamId || '');
+    const playerTeamAbbr = (pick.player?.team || '').toLowerCase();
+    const playerEventId = String(pick.player?.eventId || '');
+
+    const isGameFinal = (playerEventId && completedEventIds.has(playerEventId)) ||
+                        (playerTeamId && completedTeamIds.has(playerTeamId)) ||
+                        (playerTeamAbbr && completedTeamAbbrs.has(playerTeamAbbr));
+
+    let status = 'pending';
+    if (matchingTD) {
+      status = 'scored';
+    } else if (isGameFinal) {
+      status = 'missed';
+    }
+
     return {
       ...pick,
       hasScored: !!matchingTD,
       scoringPlay: matchingTD ? matchingTD.playText : null,
-      status: matchingTD ? 'scored' : 'pending' // 'scored' | 'pending'
+      status: status // 'scored' | 'missed' | 'pending'
     };
   });
 

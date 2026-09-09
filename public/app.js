@@ -184,6 +184,113 @@ function renderParlayTab(data) {
     lastRefreshedLabel.textContent = `Last Refreshed: ${formatLastRefreshed(data.lastScoringCheck)}`;
   }
 
+  // Update Parlay Status Live/Busted Banner with Wall of Fame / Shame
+  const statusBanner = document.getElementById('parlay-status-banner');
+  if (statusBanner) {
+    const pickedMembers = (data.members || []).filter(m => m.hasPicked);
+    const missedMembers = pickedMembers.filter(m => m.pick.status === 'missed');
+    const scoredMembers = pickedMembers.filter(m => m.pick.hasScored || m.pick.status === 'scored');
+
+    if (pickedMembers.length === 0) {
+      statusBanner.style.display = 'none';
+    } else {
+      statusBanner.style.display = 'block';
+
+      if (missedMembers.length > 0) {
+        statusBanner.className = 'parlay-status-banner busted';
+        let bannerHtml = `
+          <div class="status-banner-header">
+            <div class="status-banner-title">
+              <i data-lucide="alert-octagon"></i>
+              <span>PARLAY BUSTED!</span>
+            </div>
+            <div class="status-banner-sub">${missedMembers.length} leg${missedMembers.length > 1 ? 's' : ''} failed to score TD</div>
+          </div>
+
+          <div class="wall-section shame">
+            <div class="wall-title">
+              <i data-lucide="skull"></i>
+              <span>WEEK ${data.week} WALL OF SHAME</span>
+            </div>
+            <div class="wall-members-grid">
+              ${missedMembers.map(m => `
+                <div class="wall-member-chip">
+                  <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
+                  <div class="wall-chip-info">
+                    <div class="wall-chip-name">${m.teamName || m.name}</div>
+                    <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                  </div>
+                  <span class="wall-chip-badge missed">NO TD (FINAL)</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+        if (scoredMembers.length > 0) {
+          bannerHtml += `
+            <div class="wall-section fame">
+              <div class="wall-title">
+                <i data-lucide="trophy"></i>
+                <span>WEEK ${data.week} WALL OF FAME</span>
+              </div>
+              <div class="wall-members-grid">
+                ${scoredMembers.map(m => `
+                  <div class="wall-member-chip">
+                    <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
+                    <div class="wall-chip-info">
+                      <div class="wall-chip-name">${m.teamName || m.name}</div>
+                      <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                    </div>
+                    <span class="wall-chip-badge scored">TD SCORED!</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        statusBanner.innerHTML = bannerHtml;
+      } else {
+        statusBanner.className = 'parlay-status-banner alive';
+        let bannerHtml = `
+          <div class="status-banner-header">
+            <div class="status-banner-title">
+              <i data-lucide="zap"></i>
+              <span>PARLAY ALIVE!</span>
+            </div>
+            <div class="status-banner-sub">All active legs still live! (${scoredMembers.length}/${pickedMembers.length} TDs hit)</div>
+          </div>
+        `;
+
+        if (scoredMembers.length > 0) {
+          bannerHtml += `
+            <div class="wall-section fame">
+              <div class="wall-title">
+                <i data-lucide="trophy"></i>
+                <span>WEEK ${data.week} WALL OF FAME</span>
+              </div>
+              <div class="wall-members-grid">
+                ${scoredMembers.map(m => `
+                  <div class="wall-member-chip">
+                    <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
+                    <div class="wall-chip-info">
+                      <div class="wall-chip-name">${m.teamName || m.name}</div>
+                      <div class="wall-chip-player">${m.pick.player.name} (${m.pick.player.team})</div>
+                    </div>
+                    <span class="wall-chip-badge scored">TD SCORED!</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        statusBanner.innerHTML = bannerHtml;
+      }
+    }
+  }
+
   // Update Payout Card
   const parlay = data.parlay || {};
   parlayPickedCount.textContent = data.picksCount;
@@ -203,8 +310,9 @@ function renderParlayTab(data) {
     const memberImg = member.image || `/images/${member.id}.png`;
 
     if (hasPicked) {
-      const isScored = pick.hasScored;
-      card.className = `leg-card ${isScored ? 'scored' : ''}`;
+      const isScored = pick.hasScored || pick.status === 'scored';
+      const isMissed = pick.status === 'missed';
+      card.className = `leg-card ${isScored ? 'scored' : isMissed ? 'missed' : ''}`;
       card.innerHTML = `
         <div class="leg-card-left">
           <div class="member-avatar ${member.isAdmin ? 'admin' : ''}" onclick="openProfileModal('${member.id}')" title="Click to edit team profile">
@@ -227,12 +335,13 @@ function renderParlayTab(data) {
               <span class="player-picked-meta">${pick.player.position} - ${pick.player.team} (${pick.player.matchup})</span>
             </div>
             ${pick.scoringPlay ? `<div style="font-size:10px; color:#22c55e; margin-top:2px; display:flex; align-items:center; gap:4px;"><i data-lucide="check-circle-2" style="width:12px; height:12px;"></i> ${pick.scoringPlay}</div>` : ''}
+            ${isMissed ? `<div style="font-size:10px; color:#f87171; margin-top:2px; display:flex; align-items:center; gap:4px;"><i data-lucide="alert-circle" style="width:12px; height:12px;"></i> Game has gone Final without TD</div>` : ''}
           </div>
         </div>
         <div class="leg-card-right">
           <span class="odds-tag">${pick.player.odds}</span>
-          <span class="status-badge ${isScored ? 'scored' : 'pending'}">
-            ${isScored ? '<i data-lucide="check" style="width:12px; height:12px;"></i> TD SCORED!' : 'PENDING'}
+          <span class="status-badge ${isScored ? 'scored' : isMissed ? 'missed' : 'pending'}">
+            ${isScored ? '<i data-lucide="check" style="width:12px; height:12px;"></i> TD SCORED!' : isMissed ? '<i data-lucide="x" style="width:12px; height:12px;"></i> NO TD (FINAL)' : 'PENDING'}
           </span>
           <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
             <a href="${pick.player.draftkingsBetUrl || 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers'}" target="_blank" rel="noopener" class="dk-leg-link" title="Open player on DraftKings">
@@ -557,16 +666,52 @@ function renderSimulatorTools() {
 
   parlayData.members.filter(m => m.hasPicked).forEach(m => {
     const p = m.pick;
+    const isScored = p.hasScored || p.status === 'scored';
+    const isMissed = p.status === 'missed';
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:12px;';
+    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; gap:8px;';
     row.innerHTML = `
-      <span>${m.name}: <b>${p.player.name}</b></span>
-      <button class="btn" style="padding:4px 8px; font-size:10px; background:${p.hasScored ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}; color:${p.hasScored ? '#f87171' : '#22c55e'};" onclick="simulatePickTD('${m.id}', ${!p.hasScored})">
-        ${p.hasScored ? 'Reset to Pending' : 'Simulate TD Scored'}
-      </button>
+      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1;">
+        ${m.name}: <b>${p.player.name}</b>
+        <span style="font-size:10px; color:${isScored ? '#22c55e' : isMissed ? '#f87171' : '#94a3b8'};">
+          (${isScored ? 'TD' : isMissed ? 'MISSED' : 'PENDING'})
+        </span>
+      </span>
+      <div style="display:flex; gap:4px; flex-shrink:0;">
+        <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(34,197,94,0.2); color:#22c55e;" onclick="simulatePickStatus('${m.id}', 'scored')">
+          TD
+        </button>
+        <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(239,68,68,0.2); color:#f87171;" onclick="simulatePickStatus('${m.id}', 'missed')">
+          Miss
+        </button>
+        <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(148,163,184,0.2); color:#94a3b8;" onclick="simulatePickStatus('${m.id}', 'pending')">
+          Reset
+        </button>
+      </div>
     `;
     adminTdSimList.appendChild(row);
   });
+}
+
+// Simulator helper
+async function simulatePickStatus(memberId, status) {
+  try {
+    const res = await fetch('/api/admin/simulate-td', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId, status })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Set pick to ${status.toUpperCase()}!`);
+      await loadParlayData();
+      renderSimulatorTools();
+    } else {
+      showToast(data.error || 'Failed to simulate');
+    }
+  } catch (err) {
+    showToast('Simulation error');
+  }
 }
 
 // Generate formatted text representation of the current parlay for clipboard/sharing

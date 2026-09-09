@@ -343,6 +343,11 @@ body {
   background: linear-gradient(90deg, rgba(34, 197, 94, 0.12) 0%, rgba(23, 32, 51, 0.9) 100%);
 }
 
+.leg-card.missed {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(23, 32, 51, 0.9) 100%);
+}
+
 .leg-card-left {
   display: flex;
   align-items: center;
@@ -639,9 +644,193 @@ body {
   gap: 4px;
 }
 
+.status-badge.missed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .status-badge.unpicked {
   background: rgba(239, 68, 68, 0.12);
   color: #f87171;
+}
+
+/* Parlay Status Banner (Alive / Busted) & Wall of Fame/Shame */
+.parlay-status-banner {
+  border-radius: 14px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--bg-card);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.parlay-status-banner.busted {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.22);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.14) 0%, rgba(23, 32, 51, 0.95) 100%);
+}
+
+.parlay-status-banner.alive {
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.14) 0%, rgba(23, 32, 51, 0.95) 100%);
+}
+
+.status-banner-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.parlay-status-banner.busted .status-banner-header {
+  background: rgba(239, 68, 68, 0.18);
+  border-bottom-color: rgba(239, 68, 68, 0.25);
+}
+
+.parlay-status-banner.alive .status-banner-header {
+  background: rgba(34, 197, 94, 0.18);
+  border-bottom-color: rgba(34, 197, 94, 0.25);
+}
+
+.status-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.parlay-status-banner.busted .status-banner-title {
+  color: #f87171;
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.parlay-status-banner.alive .status-banner-title {
+  color: var(--accent-green);
+  text-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+.status-banner-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wall-section {
+  padding: 12px 14px;
+}
+
+.wall-section + .wall-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wall-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.wall-section.shame .wall-title {
+  color: #f87171;
+}
+
+.wall-section.fame .wall-title {
+  color: var(--accent-gold);
+}
+
+.wall-members-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.wall-member-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 0;
+}
+
+.wall-section.shame .wall-member-chip {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.wall-section.fame .wall-member-chip {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.wall-chip-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.wall-chip-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.wall-chip-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wall-chip-player {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wall-chip-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.wall-chip-badge.missed {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.wall-chip-badge.scored {
+  background: rgba(34, 197, 94, 0.25);
+  color: var(--accent-green);
+  border: 1px solid rgba(34, 197, 94, 0.45);
 }
 
 .dk-leg-link {

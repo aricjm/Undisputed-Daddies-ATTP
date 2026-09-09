@@ -290,15 +290,27 @@ app.post('/api/admin/bettor', async (req, res) => {
 
 app.post('/api/admin/simulate-td', async (req, res) => {
   try {
-    const { memberId, hasScored, scoringPlay } = req.body;
+    const { memberId, hasScored, status, scoringPlay } = req.body;
     const state = await getAppState();
     const pick = state.currentWeekPicks.find(p => p.memberId === memberId);
     if (!pick) {
       return res.status(404).json({ error: 'Pick not found' });
     }
-    pick.hasScored = hasScored !== false;
-    pick.status = pick.hasScored ? 'scored' : 'pending';
-    pick.scoringPlay = scoringPlay || `${pick.player.name} 6 Yd touchdown run`;
+
+    if (status === 'missed') {
+      pick.hasScored = false;
+      pick.status = 'missed';
+      pick.scoringPlay = null;
+    } else if (status === 'scored' || hasScored === true) {
+      pick.hasScored = true;
+      pick.status = 'scored';
+      pick.scoringPlay = scoringPlay || `${pick.player.name} 6 Yd touchdown run`;
+    } else {
+      pick.hasScored = false;
+      pick.status = 'pending';
+      pick.scoringPlay = null;
+    }
+
     state.lastScoringCheck = new Date().toISOString();
     await updateAppState(state);
 
@@ -350,15 +362,17 @@ app.get('/api/stats', async (req, res) => {
     for (const pick of state.currentWeekPicks) {
       if (statsByMember[pick.memberId]) {
         statsByMember[pick.memberId].totalPicks += 1;
-        if (pick.hasScored) {
+        if (pick.hasScored || pick.status === 'scored') {
           statsByMember[pick.memberId].tdsScored += 1;
+        } else if (pick.status === 'missed') {
+          statsByMember[pick.memberId].tdsMissed += 1;
         } else {
           statsByMember[pick.memberId].pending += 1;
         }
         statsByMember[pick.memberId].history.push({
           week: state.currentWeek,
           player: pick.player,
-          result: pick.hasScored ? 'scored' : 'pending'
+          result: pick.hasScored || pick.status === 'scored' ? 'scored' : (pick.status === 'missed' ? 'missed' : 'pending')
         });
       }
     }
