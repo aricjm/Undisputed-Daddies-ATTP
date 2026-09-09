@@ -71,3 +71,13 @@ npm install
 npm start
 ```
 Then open `http://localhost:3000` in your browser.
+
+---
+
+### TODO
+- [ ] **SMS Notification to Designated Bettor** — Code is already in place (`sendSms()` in `server.js` / `api/index.js`, phone numbers in `cache.js`, "📱 Notify Bettor" button in admin modal). Activate by adding 3 env vars to `.env` and Vercel project settings:
+  - `TWILIO_ACCOUNT_SID`
+  - `TWILIO_AUTH_TOKEN`
+  - `TWILIO_PHONE_NUMBER`
+  
+  Sign up at [twilio.com](https://www.twilio.com) (requires credit card after free trial). Once set, the bettor is auto-texted with the DraftKings bet slip link when the 10th pick is locked in.
