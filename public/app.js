@@ -52,6 +52,8 @@ const cancelBettorBtn = document.getElementById('cancel-bettor-btn');
 const saveBettorBtn = document.getElementById('save-bettor-btn');
 const adminBettorSelect = document.getElementById('admin-bettor-select');
 const adminBettorReason = document.getElementById('admin-bettor-reason');
+const adminWeekSelect = document.getElementById('admin-week-select');
+const saveWeekBtn = document.getElementById('save-week-btn');
 const adminTdSimList = document.getElementById('admin-td-sim-list');
 
 // Profile Edit Modal
@@ -591,6 +593,28 @@ function openAdminBettorModal() {
 
   adminBettorReason.value = parlayData?.bettorReason || 'Scored least fantasy points in previous week';
 
+  // Populate NFL week selector
+  if (adminWeekSelect) {
+    adminWeekSelect.innerHTML = '';
+    const calculatedWeek = parlayData?.calculatedWeek || parlayData?.week || 1;
+    const currentWeek = parlayData?.week || 1;
+    const isManual = !!parlayData?.manualWeekOverride;
+
+    const autoOpt = document.createElement('option');
+    autoOpt.value = 'auto';
+    autoOpt.textContent = `Auto (Calendar: Week ${calculatedWeek})`;
+    if (!isManual) autoOpt.selected = true;
+    adminWeekSelect.appendChild(autoOpt);
+
+    for (let w = 1; w <= 18; w++) {
+      const opt = document.createElement('option');
+      opt.value = String(w);
+      opt.textContent = `Week ${w}${isManual && currentWeek === w ? ' [Active Override]' : ''}`;
+      if (isManual && currentWeek === w) opt.selected = true;
+      adminWeekSelect.appendChild(opt);
+    }
+  }
+
   // Simulator controls
   renderSimulatorTools();
 
@@ -777,6 +801,38 @@ async function saveBettorDesignation() {
     }
   } catch (err) {
     showToast('Network error updating bettor');
+  }
+}
+
+// Save Manual NFL Week Override
+async function saveWeekOverride() {
+  if (!adminWeekSelect) return;
+  const val = adminWeekSelect.value;
+  const displayVal = val === 'auto' ? 'Auto mode' : `Week ${val}`;
+  if (!confirm(`Are you sure you want to switch to ${displayVal}? This will reload the active schedule and reset picks if switching weeks.`)) return;
+
+  saveWeekBtn.disabled = true;
+  saveWeekBtn.textContent = 'Updating...';
+
+  try {
+    const res = await fetch('/api/admin/week', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week: val })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || `Switched to Week ${data.currentWeek}!`);
+      await Promise.all([loadParlayData(), loadPlayersData()]);
+      openAdminBettorModal();
+    } else {
+      showToast(data.error || 'Failed to update week');
+    }
+  } catch (err) {
+    showToast('Network error updating week');
+  } finally {
+    saveWeekBtn.disabled = false;
+    saveWeekBtn.textContent = 'Update Week';
   }
 }
 
@@ -996,6 +1052,7 @@ function setupEventListeners() {
   closeBettorModal.addEventListener('click', () => bettorModal.classList.remove('open'));
   cancelBettorBtn.addEventListener('click', () => bettorModal.classList.remove('open'));
   saveBettorBtn.addEventListener('click', saveBettorDesignation);
+  if (saveWeekBtn) saveWeekBtn.addEventListener('click', saveWeekOverride);
 
   // Profile Modal
   closeProfileModal.addEventListener('click', () => editProfileModal.classList.remove('open'));

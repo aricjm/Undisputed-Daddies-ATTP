@@ -3,6 +3,7 @@ const cors = require('cors');
 const {
   LEAGUE_MEMBERS,
   getEnrichedMembers,
+  getCurrentCalculatedWeek,
   getAppState,
   updateAppState,
   calculateParlay
@@ -105,6 +106,8 @@ app.get('/api/parlay', async (req, res) => {
 
     res.json({
       week: state.currentWeek,
+      calculatedWeek: getCurrentCalculatedWeek(),
+      manualWeekOverride: state.manualWeekOverride || null,
       seasonYear: state.seasonYear,
       bettor: currentBettorMember,
       bettorReason: state.bettorReason || '',
@@ -282,6 +285,66 @@ app.post('/api/admin/bettor', async (req, res) => {
       message: `Updated bettor to ${member.name}`,
       bettor: member,
       bettorReason: state.bettorReason
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/week - Manually override or update current NFL week
+app.post('/api/admin/week', async (req, res) => {
+  try {
+    const { week } = req.body;
+    const state = await getAppState();
+
+    if (week === 'auto') {
+      state.manualWeekOverride = null;
+      const expectedWeek = getCurrentCalculatedWeek();
+      if (state.currentWeek !== expectedWeek) {
+        if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
+          state.history = state.history || {};
+          state.history[state.currentWeek] = state.currentWeekPicks.map(p => ({
+            memberId: p.memberId,
+            memberName: p.memberName,
+            player: p.player,
+            result: (p.hasScored || p.status === 'scored') ? 'scored' : 'missed'
+          }));
+        }
+        state.currentWeek = expectedWeek;
+        state.currentWeekPicks = [];
+      }
+    } else {
+      const targetWeek = parseInt(week, 10);
+      if (isNaN(targetWeek) || targetWeek < 1 || targetWeek > 18) {
+        return res.status(400).json({ error: 'Week must be between 1 and 18, or auto.' });
+      }
+
+      if (state.currentWeek !== targetWeek) {
+        if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
+          state.history = state.history || {};
+          state.history[state.currentWeek] = state.currentWeekPicks.map(p => ({
+            memberId: p.memberId,
+            memberName: p.memberName,
+            player: p.player,
+            result: (p.hasScored || p.status === 'scored') ? 'scored' : 'missed'
+          }));
+        }
+        state.currentWeek = statusWeek => state.currentWeekPicks = [];
+        state.currentWeekPicks = [];
+      }
+
+      state.manualWeekOverride = targetWeek;
+      state.currentWeek = targetWeek;
+    }
+
+    state.lastScoringCheck = null;
+    await updateAppState(state);
+
+    res.json({
+      success: true,
+      message: `Updated to Week ${state.currentWeek}!`,
+      currentWeek: state.currentWeek,
+      manualWeekOverride: state.manualWeekOverride
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -94,8 +94,10 @@ async function getAppState() {
 
   state.memberOverrides = state.memberOverrides || {};
 
-  // Check if calendar has crossed Tuesday 2:00 AM CST into a new week
-  const expectedWeek = getCurrentCalculatedWeek();
+  // Check if calendar has crossed Tuesday 2:00 AM CST into a new week (or manual override is active)
+  const calculatedWeek = getCurrentCalculatedWeek();
+  const expectedWeek = state.manualWeekOverride ? state.manualWeekOverride : calculatedWeek;
+
   if (state.currentWeek !== expectedWeek) {
     if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
       state.history = state.history || {};

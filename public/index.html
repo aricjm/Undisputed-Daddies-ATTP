@@ -236,6 +236,22 @@
         <label class="modal-label" style="margin-top: 14px;">Reason / Fantasy Score</label>
         <input type="text" id="admin-bettor-reason" class="form-input" placeholder="e.g. Scored 58.4 pts in Week 1">
 
+        <!-- Manual NFL Season Week Override / Update -->
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+          <label class="modal-label">NFL Season Week</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="admin-week-select" class="form-select" style="flex:1;">
+              <!-- Populated dynamically -->
+            </select>
+            <button type="button" class="btn btn-secondary" id="save-week-btn" style="white-space:nowrap; padding:9px 12px;">
+              Update Week
+            </button>
+          </div>
+          <p style="font-size:11px; color:#94a3b8; margin-top:5px; margin-bottom:0;">
+            Auto-advances every Tuesday at 2:00 AM CST. Override manually here if needed.
+          </p>
+        </div>
+
         <div class="admin-tools-box">
           <div class="tools-title"><i data-lucide="sliders"></i> Manage Picks & Scoring Simulator</div>
           <p>Delete active picks or simulate live touchdown states:</p>
