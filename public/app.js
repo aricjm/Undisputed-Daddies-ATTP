@@ -694,7 +694,7 @@ function openAdminBettorModal() {
 function renderSimulatorTools() {
   adminTdSimList.innerHTML = '';
   if (!parlayData || parlayData.picksCount === 0) {
-    adminTdSimList.innerHTML = '<div style="font-size:11px; color:#64748b;">No active picks to simulate. Add picks first.</div>';
+    adminTdSimList.innerHTML = '<div style="font-size:11px; color:#64748b; padding:4px 0;">No active picks to manage. Add picks first.</div>';
     return;
   }
 
@@ -703,31 +703,35 @@ function renderSimulatorTools() {
     const isScored = p.hasScored || p.status === 'scored';
     const isMissed = p.status === 'missed';
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; gap:8px;';
+    row.style.cssText = 'display:flex; flex-direction:column; gap:8px; margin-top:8px; padding:8px 10px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); border-radius:8px; font-size:12px;';
+    const matchupStr = p.player.matchup ? `${p.player.team} ${p.player.matchup}` : (p.player.team || '');
     row.innerHTML = `
-      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1;">
-        ${m.name}: <b>${p.player.name}</b>
-        <span style="font-size:10px; color:${isScored ? '#22c55e' : isMissed ? '#f87171' : '#94a3b8'};">
-          (${isScored ? 'TD' : isMissed ? 'MISSED' : 'PENDING'})
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <span style="font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1;">
+          ${m.name}: <span style="color:#e2e8f0; font-weight:600;">${p.player.name}</span> <span style="font-size:11px; color:#94a3b8;">(${matchupStr})</span>
         </span>
-      </span>
-      <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
-        <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(34,197,94,0.2); color:#22c55e;" onclick="simulatePickStatus('${m.id}', 'scored')">
-          TD
+        <span class="wall-chip-badge ${isScored ? 'scored' : isMissed ? 'missed' : 'pending'}" style="font-size:9px; padding:2px 6px;">
+          ${isScored ? 'TD' : isMissed ? 'MISSED' : 'PENDING'}
+        </span>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button class="btn" style="padding:4px 10px; font-size:11px; background:rgba(34,197,94,0.2); color:#22c55e; border:1px solid rgba(34,197,94,0.3);" onclick="simulatePickStatus('${m.id}', 'scored')">
+          <i data-lucide="check" style="width:12px; height:12px;"></i> TD
         </button>
-        <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(239,68,68,0.2); color:#f87171;" onclick="simulatePickStatus('${m.id}', 'missed')">
-          Miss
+        <button class="btn" style="padding:4px 10px; font-size:11px; background:rgba(239,68,68,0.2); color:#f87171; border:1px solid rgba(239,68,68,0.3);" onclick="simulatePickStatus('${m.id}', 'missed')">
+          <i data-lucide="x" style="width:12px; height:12px;"></i> Miss
         </button>
-        <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(148,163,184,0.2); color:#94a3b8;" onclick="simulatePickStatus('${m.id}', 'pending')">
-          Reset
+        <button class="btn" style="padding:4px 10px; font-size:11px; background:rgba(148,163,184,0.2); color:#cbd5e1; border:1px solid rgba(148,163,184,0.3);" onclick="simulatePickStatus('${m.id}', 'pending')">
+          <i data-lucide="rotate-ccw" style="width:12px; height:12px;"></i> Reset
         </button>
-        <button class="delete-pick-btn" onclick="removePick('${m.id}', '${m.name}')" title="Delete ${m.name}'s pick">
-          <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+        <button class="delete-pick-btn" style="margin-left:auto; padding:5px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; font-size:11px;" onclick="removePick('${m.id}', '${m.name}')" title="Delete ${m.name}'s pick">
+          <i data-lucide="trash-2" style="width:13px; height:13px;"></i> Delete
         </button>
       </div>
     `;
     adminTdSimList.appendChild(row);
   });
+  refreshIcons();
 }
 
 // Simulator helper
