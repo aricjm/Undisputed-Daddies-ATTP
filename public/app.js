@@ -211,7 +211,6 @@ function renderParlayTab(data) {
               <i data-lucide="skull"></i>
               <span>Parlay BUSTED!</span>
             </div>
-            <div class="status-banner-sub">${missedMembers.length} leg${missedMembers.length > 1 ? 's' : ''} failed to score TD</div>
           </div>
         `;
       } else if (scoredMembers.length === 10) {
@@ -222,7 +221,6 @@ function renderParlayTab(data) {
               <i data-lucide="trophy"></i>
               <span>MISSION ACCOMPLISHED!</span>
             </div>
-            <div class="status-banner-sub">ALL 10 LEGS HIT! PARLAY CASHES! 💰</div>
           </div>
         `;
       } else {
@@ -292,11 +290,6 @@ function renderParlayTab(data) {
           <span class="status-badge ${isScored ? 'scored' : isMissed ? 'missed' : 'pending'}">
             ${isScored ? '<i data-lucide="check" style="width:12px; height:12px;"></i> TD SCORED!' : isMissed ? '<i data-lucide="x" style="width:12px; height:12px;"></i> NO TD (FINAL)' : 'PENDING'}
           </span>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-            <a href="${pick.player.draftkingsBetUrl || 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers'}" target="_blank" rel="noopener" class="dk-leg-link" title="Open player on DraftKings">
-              <span class="dk-mini-badge">DK</span>
-            </a>
-          </div>
         </div>
       `;
     } else {
@@ -678,7 +671,7 @@ function generateParlayText() {
   const parlay = parlayData.parlay || {};
   const profitPerPerson = ((parseFloat(parlay.profit || '0.00')) / 10).toFixed(2);
   let text = `UNDISPUTED DADDIES - WEEK ${parlayData.week}\n`;
-  text += `10-Leg Anytime TD Parlay ($10 Bet)\n`;
+  text += `10-Leg ATTD Parlay ($10 Bet)\n`;
   text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Potential Win: $${parlay.payout || '10.00'} | Profit/Person: $${profitPerPerson}\n`;
   text += `Designated Bettor: ${parlayData.bettor?.teamName || parlayData.bettor?.name} (${parlayData.bettor?.fullName || parlayData.bettor?.name})\n\n`;
   text += `PICKS (${picks.length}/10):\n`;
