@@ -84,11 +84,13 @@ async function fetchRealAttOdds(espnEvents) {
   const cachedMem = nflCache.get(memCacheKey);
   if (cachedMem) return cachedMem;
 
+  let previousCachedRedis = null;
   // 2. Check persistent Upstash Redis cache (survives Vercel cold starts)
   if (redisClient) {
     try {
       const cachedRedis = await redisClient.get(REDIS_ODDS_KEY);
       if (cachedRedis && typeof cachedRedis === 'object') {
+        previousCachedRedis = cachedRedis;
         const playerOddsMap = new Map();
         for (const [name, val] of Object.entries(cachedRedis)) {
           if (typeof val === 'object' && val !== null) {
@@ -128,12 +130,22 @@ async function fetchRealAttOdds(espnEvents) {
       const comp = e.competitions?.[0];
       const home = comp?.competitors?.find(c => c.homeAway === 'home')?.team?.displayName || '';
       const away = comp?.competitors?.find(c => c.homeAway === 'away')?.team?.displayName || '';
-      return { home: home.toLowerCase(), away: away.toLowerCase() };
+      const isCompleted = e.status?.type?.completed === true ||
+                          e.status?.type?.state === 'post' ||
+                          (e.status?.type?.name || '').includes('FINAL');
+      return { home: home.toLowerCase(), away: away.toLowerCase(), isCompleted };
     });
 
-    // Match Odds API events to ESPN events by team nickname (last word of team name)
+    // Match Odds API events to ESPN events by team nickname, skipping games that already kicked off or finished
     const matchedOddsEventIds = [];
+    const nowMs = Date.now();
     for (const oe of oddsEvents) {
+      // If game kicked off more than 20 minutes ago, skip fetching props to save Odds API credits
+      const kickoffMs = oe.commence_time ? new Date(oe.commence_time).getTime() : 0;
+      if (kickoffMs && (nowMs - kickoffMs > 20 * 60 * 1000)) {
+        continue;
+      }
+
       const oeHome = (oe.home_team || '').toLowerCase();
       const oeAway = (oe.away_team || '').toLowerCase();
       const oeHomeNick = oeHome.split(' ').pop();
@@ -143,10 +155,13 @@ async function fetchRealAttOdds(espnEvents) {
         const epAwayNick = ep.away.split(' ').pop();
         return epHomeNick === oeHomeNick && epAwayNick === oeAwayNick;
       });
-      if (match) matchedOddsEventIds.push(oe.id);
+      // Skip games that are already completed on ESPN
+      if (match && !match.isCompleted) {
+        matchedOddsEventIds.push(oe.id);
+      }
     }
 
-    console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} games for ATT odds`);
+    console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} active/upcoming games for ATT odds`);
 
     // Fetch ATT props sequentially with retry logic to avoid 429 rate-limiting
     const propResults = [];
@@ -175,6 +190,19 @@ async function fetchRealAttOdds(espnEvents) {
 
     // Build playerName -> { price, outcomeParam } map from DraftKings data
     const playerOddsMap = new Map();
+
+    // 1. Preserve previously cached odds for players whose games have already finished or started
+    if (previousCachedRedis && typeof previousCachedRedis === 'object') {
+      for (const [name, val] of Object.entries(previousCachedRedis)) {
+        if (typeof val === 'object' && val !== null) {
+          playerOddsMap.set(name, val);
+        } else if (typeof val === 'number') {
+          playerOddsMap.set(name, { price: val, outcomeParam: null });
+        }
+      }
+    }
+
+    // 2. Overwrite / merge with freshly fetched upcoming games
     for (const result of propResults) {
       if (!result?.bookmakers) continue;
       const dk = result.bookmakers.find(b => b.key === 'draftkings');
