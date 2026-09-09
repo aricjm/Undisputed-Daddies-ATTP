@@ -347,9 +347,6 @@ function renderParlayTab(data) {
             <a href="${pick.player.draftkingsBetUrl || 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers'}" target="_blank" rel="noopener" class="dk-leg-link" title="Open player on DraftKings">
               <span class="dk-mini-badge">DK</span>
             </a>
-            <button class="delete-pick-btn" onclick="removePick('${member.id}', '${member.name}')" title="Remove pick">
-              <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
-            </button>
           </div>
         </div>
       `;
@@ -387,7 +384,7 @@ function renderParlayTab(data) {
   refreshIcons();
 }
 
-// Remove Pick
+// Remove Pick (Admin only)
 async function removePick(memberId, memberName) {
   if (!confirm(`Are you sure you want to remove ${memberName}'s pick?`)) return;
 
@@ -396,7 +393,9 @@ async function removePick(memberId, memberName) {
     const data = await res.json();
     if (data.success) {
       showToast(`Removed pick for ${memberName}`);
-      loadParlayData();
+      await loadParlayData();
+      renderSimulatorTools();
+      refreshIcons();
     } else {
       showToast(data.error || 'Failed to remove pick');
     }
@@ -677,7 +676,7 @@ function renderSimulatorTools() {
           (${isScored ? 'TD' : isMissed ? 'MISSED' : 'PENDING'})
         </span>
       </span>
-      <div style="display:flex; gap:4px; flex-shrink:0;">
+      <div style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
         <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(34,197,94,0.2); color:#22c55e;" onclick="simulatePickStatus('${m.id}', 'scored')">
           TD
         </button>
@@ -686,6 +685,9 @@ function renderSimulatorTools() {
         </button>
         <button class="btn" style="padding:3px 6px; font-size:10px; background:rgba(148,163,184,0.2); color:#94a3b8;" onclick="simulatePickStatus('${m.id}', 'pending')">
           Reset
+        </button>
+        <button class="delete-pick-btn" onclick="removePick('${m.id}', '${m.name}')" title="Delete ${m.name}'s pick">
+          <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
         </button>
       </div>
     `;

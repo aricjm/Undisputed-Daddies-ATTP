@@ -36,7 +36,7 @@
         </div>
       </div>
       
-      <!-- Bettor Spotlight Card (Triple-click opens Admin Bettor Designation) -->
+      <!-- Bettor Spotlight Card (Triple-click opens Admin Settings) -->
       <div class="bettor-banner" id="bettor-banner" title="Designated bettor for this week">
         <div class="bettor-icon">
           $10
@@ -218,11 +218,11 @@
     </div>
   </div>
 
-  <!-- Admin Modal: Update Bettor & Reason -->
+  <!-- Admin Modal: Settings, Bettor & Pick Management -->
   <div class="modal-overlay" id="bettor-modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i data-lucide="shield"></i> Admin Bettor Designation</h3>
+        <h3><i data-lucide="settings"></i> Admin Settings</h3>
         <button class="modal-close" id="close-bettor-modal">&times;</button>
       </div>
       <div class="modal-body">
@@ -237,8 +237,8 @@
         <input type="text" id="admin-bettor-reason" class="form-input" placeholder="e.g. Scored 58.4 pts in Week 1">
 
         <div class="admin-tools-box">
-          <div class="tools-title"><i data-lucide="flask-conical"></i> Live Test / Simulator</div>
-          <p>Test the "Refresh Scores" live TD trigger on any pick:</p>
+          <div class="tools-title"><i data-lucide="sliders"></i> Manage Picks & Scoring Simulator</div>
+          <p>Delete active picks or simulate live touchdown states:</p>
           <div id="admin-td-sim-list"></div>
         </div>
       </div>
