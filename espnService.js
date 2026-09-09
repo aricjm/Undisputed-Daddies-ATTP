@@ -130,10 +130,49 @@ async function getWeekPlayers(targetWeek) {
     }
   }
 
-  // Fetch all team rosters playing this week in parallel batches
+  // Fetch team rosters and depth charts for all playing teams in parallel
   const playingTeamIds = Object.keys(matchupsByTeamId);
+  const seasonYear = weekInfo.season;
+
   const rosterPromises = playingTeamIds.map(tId => fetchTeamRoster(tId));
-  const rosters = await Promise.all(rosterPromises);
+  const depthPromises = playingTeamIds.map(async (tId) => {
+    try {
+      const res = await fetch(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${seasonYear}/teams/${tId}/depthcharts`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  });
+
+  const [rosters, depthCharts] = await Promise.all([
+    Promise.all(rosterPromises),
+    Promise.all(depthPromises)
+  ]);
+
+  // Build athlete ID -> depth chart rank map (1 = starter / RB1 / WR1 / TE1 / QB1)
+  const depthRankMap = {};
+  for (const depthData of depthCharts) {
+    if (!depthData || !depthData.items) continue;
+    for (const item of depthData.items) {
+      if (!item.positions) continue;
+      for (const pk of Object.keys(item.positions)) {
+        const posData = item.positions[pk];
+        if (!posData || !Array.isArray(posData.athletes)) continue;
+        for (const ath of posData.athletes) {
+          const str = JSON.stringify(ath);
+          const m = str.match(/athletes\/(\d+)/);
+          if (m && m[1]) {
+            const athId = m[1];
+            const r = ath.rank || 1;
+            if (!depthRankMap[athId] || r < depthRankMap[athId]) {
+              depthRankMap[athId] = r;
+            }
+          }
+        }
+      }
+    }
+  }
 
   const players = [];
   const relevantPositions = ['QB', 'RB', 'WR', 'TE', 'FB'];
@@ -156,15 +195,19 @@ async function getWeekPlayers(targetWeek) {
       if (!relevantPositions.includes(pos)) continue;
 
       posCount[pos] = (posCount[pos] || 0) + 1;
-      const posIndex = posCount[pos] - 1;
+      const rosterPosIndex = posCount[pos] - 1;
 
-      // Filter out deep bench players (e.g. QB3, WR7+, RB6+) to keep list clean, high quality and fast
-      if (pos === 'QB' && posIndex > 1) continue;
-      if (pos === 'RB' && posIndex > 4) continue;
-      if (pos === 'WR' && posIndex > 5) continue;
-      if (pos === 'TE' && posIndex > 3) continue;
+      // Use official depth chart rank (1-indexed) if available, otherwise fall back to roster order
+      const depthRank = depthRankMap[athlete.id] || (rosterPosIndex + 1);
+      const effectiveIndex = depthRank - 1;
 
-      const defaultOddsNum = estimateAttOdds(pos, posIndex);
+      // Filter out deep bench players (e.g. QB3+, WR7+, RB5+, TE4+) to keep list clean
+      if (pos === 'QB' && effectiveIndex > 1) continue;
+      if (pos === 'RB' && effectiveIndex > 3) continue;
+      if (pos === 'WR' && effectiveIndex > 4) continue;
+      if (pos === 'TE' && effectiveIndex > 2) continue;
+
+      const defaultOddsNum = estimateAttOdds(pos, effectiveIndex);
       const oddsDisplay = defaultOddsNum > 0 ? `+${defaultOddsNum}` : `${defaultOddsNum}`;
 
       players.push({
