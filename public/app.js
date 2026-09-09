@@ -164,7 +164,9 @@ function renderParlayTab(data) {
   parlayPickedCount.textContent = data.picksCount;
   totalParlayOdds.textContent = parlay.totalOddsAmerican || '+0';
   payoutAmount.textContent = `$${parlay.payout || '10.00'}`;
-  profitAmount.textContent = `$${parlay.profit || '0.00'}`;
+  const totalProfit = parseFloat(parlay.profit || '0.00');
+  const perPersonProfit = (totalProfit / 10).toFixed(2);
+  profitAmount.textContent = `$${perPersonProfit}`;
   legsCount.textContent = `${data.picksCount}/10`;
 
   // Render 10 Legs
@@ -410,7 +412,7 @@ function openPickModalForPlayer(playerId) {
         <div style="font-weight:700; color:${alreadyPicked ? '#64748b' : '#fff'}; font-size:12px; display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
           ${m.teamName || m.name}
         </div>
-        <div style="font-size:10px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${m.fullName || m.name}</div>
+        <div style="font-size:10px; color:#94a3b8;">${m.fullName || m.name}</div>
       </div>
       ${alreadyPicked ? '<span style="font-size:9px; color:#ef4444; margin-left:auto; font-weight:700; flex-shrink:0;">PICKED</span>' : ''}
     `;
@@ -546,9 +548,10 @@ function generateParlayText() {
   if (picks.length === 0) return 'No picks locked in yet for Undisputed Daddies Week ' + (parlayData.week || 1);
 
   const parlay = parlayData.parlay || {};
+  const profitPerPerson = ((parseFloat(parlay.profit || '0.00')) / 10).toFixed(2);
   let text = `🏈 UNDISPUTED DADDIES - WEEK ${parlayData.week} ATTP\n`;
   text += `10-Leg Anytime TD Parlay ($10 Bet)\n`;
-  text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Potential Payout: $${parlay.payout || '10.00'}\n`;
+  text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Potential Win: $${parlay.payout || '10.00'} | Profit/Person: $${profitPerPerson}\n`;
   text += `Designated Bettor: ${parlayData.bettor?.teamName || parlayData.bettor?.name} (${parlayData.bettor?.fullName || parlayData.bettor?.name})\n\n`;
   text += `PICKS (${picks.length}/10):\n`;
 
