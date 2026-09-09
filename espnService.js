@@ -59,6 +59,90 @@ async function fetchTeamRoster(teamId) {
   return data;
 }
 
+// Fetch real ATT odds from The Odds API for all current week games
+// Returns Map: playerNameLower -> americanOdds (integer)
+async function fetchRealAttOdds(espnEvents) {
+  const cacheKey = 'odds_api_att_odds';
+  const cached = nflCache.get(cacheKey);
+  if (cached) return cached;
+
+  const apiKey = process.env.ODDS_API_KEY;
+  if (!apiKey) {
+    console.warn('[OddsAPI] No ODDS_API_KEY set, using estimated odds');
+    return new Map();
+  }
+
+  try {
+    // Get Odds API event list (1 request)
+    const eventsRes = await fetch(`https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events?apiKey=${apiKey}`);
+    if (!eventsRes.ok) {
+      console.warn('[OddsAPI] Events fetch failed:', eventsRes.status);
+      return new Map();
+    }
+    const oddsEvents = await eventsRes.json();
+
+    // Build normalized last-word team name lookup from ESPN events
+    const espnTeamPairs = (espnEvents || []).map(e => {
+      const comp = e.competitions?.[0];
+      const home = comp?.competitors?.find(c => c.homeAway === 'home')?.team?.displayName || '';
+      const away = comp?.competitors?.find(c => c.homeAway === 'away')?.team?.displayName || '';
+      return { home: home.toLowerCase(), away: away.toLowerCase() };
+    });
+
+    // Match Odds API events to ESPN events by team nickname (last word of team name)
+    const matchedOddsEventIds = [];
+    for (const oe of oddsEvents) {
+      const oeHome = (oe.home_team || '').toLowerCase();
+      const oeAway = (oe.away_team || '').toLowerCase();
+      const oeHomeNick = oeHome.split(' ').pop();
+      const oeAwayNick = oeAway.split(' ').pop();
+      const match = espnTeamPairs.find(ep => {
+        const epHomeNick = ep.home.split(' ').pop();
+        const epAwayNick = ep.away.split(' ').pop();
+        return epHomeNick === oeHomeNick && epAwayNick === oeAwayNick;
+      });
+      if (match) matchedOddsEventIds.push(oe.id);
+    }
+
+    console.log(`[OddsAPI] Matched ${matchedOddsEventIds.length} games for ATT odds`);
+
+    // Fetch ATT props for each matched game in parallel (1 request per game)
+    const propResults = await Promise.all(
+      matchedOddsEventIds.map(async (oddsEventId) => {
+        try {
+          const url = `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/${oddsEventId}/odds?apiKey=${apiKey}&markets=player_anytime_td&bookmakers=draftkings&oddsFormat=american`;
+          const res = await fetch(url);
+          if (!res.ok) return null;
+          return await res.json();
+        } catch { return null; }
+      })
+    );
+
+    // Build playerName -> americanOdds map from DraftKings data
+    const playerOddsMap = new Map();
+    for (const result of propResults) {
+      if (!result?.bookmakers) continue;
+      const dk = result.bookmakers.find(b => b.key === 'draftkings');
+      if (!dk) continue;
+      const market = dk.markets?.find(m => m.key === 'player_anytime_td');
+      if (!market) continue;
+      for (const outcome of market.outcomes || []) {
+        // player name is in description field, name field is always "Yes"
+        const name = (outcome.description || outcome.name || '').toLowerCase().trim();
+        const price = outcome.price;
+        if (name && price !== undefined) playerOddsMap.set(name, price);
+      }
+    }
+
+    console.log(`[OddsAPI] Loaded real ATT odds for ${playerOddsMap.size} players`);
+    nflCache.set(cacheKey, playerOddsMap, 1800); // 30 min cache
+    return playerOddsMap;
+  } catch (err) {
+    console.warn('[OddsAPI] Error fetching ATT odds:', err.message);
+    return new Map();
+  }
+}
+
 // Fetch prop bets for a competition/event
 async function fetchEventPropBets(eventId) {
   const cacheKey = `nfl_event_props_${eventId}`;
@@ -174,6 +258,9 @@ async function getWeekPlayers(targetWeek) {
     }
   }
 
+  // Fetch real ATT odds from The Odds API (runs in parallel with roster/depth fetches already done)
+  const realOddsMap = await fetchRealAttOdds(scoreboard.events || []);
+
   const players = [];
   const relevantPositions = ['QB', 'RB', 'WR', 'TE', 'FB'];
 
@@ -207,13 +294,17 @@ async function getWeekPlayers(targetWeek) {
       if (pos === 'WR' && effectiveIndex > 4) continue;
       if (pos === 'TE' && effectiveIndex > 2) continue;
 
-      const defaultOddsNum = estimateAttOdds(pos, effectiveIndex);
-      const oddsDisplay = defaultOddsNum > 0 ? `+${defaultOddsNum}` : `${defaultOddsNum}`;
+      const playerFullName = athlete.fullName || athlete.displayName;
+      const nameLower = playerFullName.toLowerCase().trim();
+      const estimatedOdds = estimateAttOdds(pos, effectiveIndex);
+      const realOdds = realOddsMap.get(nameLower);
+      const oddsNum = realOdds !== undefined ? realOdds : estimatedOdds;
+      const oddsDisplay = oddsNum > 0 ? `+${oddsNum}` : `${oddsNum}`;
 
       players.push({
         id: athlete.id,
-        name: athlete.fullName || athlete.displayName,
-        shortName: athlete.shortName || athlete.fullName,
+        name: playerFullName,
+        shortName: athlete.shortName || playerFullName,
         position: pos,
         positionName: athlete.position?.name || pos,
         jersey: athlete.jersey || '',
@@ -231,8 +322,9 @@ async function getWeekPlayers(targetWeek) {
         eventId: matchup.eventId,
         draftkingsEventUrl: `https://sportsbook.draftkings.com/event/${matchup.eventId}`,
         odds: oddsDisplay,
-        oddsValue: defaultOddsNum,
-        decimalOdds: americanToDecimal(defaultOddsNum)
+        oddsValue: oddsNum,
+        decimalOdds: americanToDecimal(oddsNum),
+        oddsSource: realOdds !== undefined ? 'draftkings' : 'estimated'
       });
     }
   }
