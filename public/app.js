@@ -80,6 +80,7 @@ const playerCountDisplay = document.getElementById('player-count-display');
 document.addEventListener('DOMContentLoaded', () => {
   setupNavigation();
   setupEventListeners();
+  setupPullToRefresh();
   loadInitialData();
   refreshIcons();
 });
@@ -575,6 +576,100 @@ async function refreshScores() {
     refreshScoresBtn.disabled = false;
     refreshIcons();
   }
+}
+
+// Mobile Pull to Refresh gesture handler
+function setupPullToRefresh() {
+  const indicator = document.getElementById('pull-refresh-indicator');
+  const icon = document.getElementById('pull-refresh-icon');
+  const text = document.getElementById('pull-refresh-text');
+  if (!indicator) return;
+
+  let startY = 0;
+  let currentY = 0;
+  let isPulling = false;
+  const PULL_THRESHOLD = 60;
+  const MAX_PULL = 80;
+
+  window.addEventListener('touchstart', (e) => {
+    // Only engage when scrolled to the top
+    if (window.scrollY <= 4 && !refreshScoresBtn.disabled) {
+      startY = e.touches[0].clientY;
+      currentY = startY;
+      isPulling = true;
+    } else {
+      isPulling = false;
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!isPulling) return;
+    currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+
+    if (diff > 0 && window.scrollY <= 4) {
+      const pullDist = Math.min(diff * 0.45, MAX_PULL);
+      indicator.classList.add('pulling');
+      indicator.style.height = `${pullDist}px`;
+      indicator.style.opacity = `${Math.min(pullDist / 35, 1)}`;
+
+      const rotation = Math.min((pullDist / PULL_THRESHOLD) * 360, 360);
+      if (icon) icon.style.transform = `rotate(${rotation}deg)`;
+
+      if (pullDist >= 40) {
+        if (text) text.textContent = 'Release to refresh';
+      } else {
+        if (text) text.textContent = 'Pull to refresh';
+      }
+    } else {
+      indicator.style.height = '0';
+      indicator.style.opacity = '0';
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', async () => {
+    if (!isPulling) return;
+    const diff = currentY - startY;
+    isPulling = false;
+    indicator.classList.remove('pulling');
+
+    if (diff * 0.45 >= 40 && window.scrollY <= 10) {
+      indicator.classList.add('refreshing');
+      indicator.style.height = '46px';
+      indicator.style.opacity = '1';
+      if (text) text.textContent = 'Refreshing scores...';
+      if (icon) icon.style.transform = '';
+
+      try {
+        await refreshScores();
+      } finally {
+        setTimeout(() => {
+          indicator.classList.remove('refreshing');
+          indicator.style.height = '0';
+          indicator.style.opacity = '0';
+          if (text) text.textContent = 'Pull to refresh';
+        }, 400);
+      }
+    } else {
+      indicator.style.height = '0';
+      indicator.style.opacity = '0';
+      if (icon) icon.style.transform = '';
+    }
+    startY = 0;
+    currentY = 0;
+  });
+
+  // Detect iOS Safari / Chrome elastic rubber-band overscroll pull down (revealing black above header)
+  let overscrollTriggered = false;
+  window.addEventListener('scroll', () => {
+    if (window.scrollY < -35 && !refreshScoresBtn.disabled && !overscrollTriggered) {
+      overscrollTriggered = true;
+      refreshScores();
+      setTimeout(() => {
+        overscrollTriggered = false;
+      }, 3500);
+    }
+  }, { passive: true });
 }
 
 // Admin Bettor Modal
