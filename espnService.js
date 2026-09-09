@@ -311,12 +311,16 @@ async function getWeekPlayers(targetWeek) {
     const homeTeam = competitors.find(c => c.homeAway === 'home');
     const awayTeam = competitors.find(c => c.homeAway === 'away');
 
-    // Check if game is played on Wednesday or Thursday (TNF / rare WNF)
+    // Check if game is played on Wednesday, Thursday, Friday, or Saturday (only Sunday & Monday allowed)
     const eventDate = new Date(event.date);
     const cstDate = new Date(eventDate.getTime() - (5 * 3600 * 1000));
-    const cstDay = cstDate.getUTCDay(); // 3 = Wednesday, 4 = Thursday
+    const cstDay = cstDate.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
     const detailLower = (event.status?.type?.detail || '').toLowerCase();
-    const isEarlyWeekdayGame = cstDay === 3 || cstDay === 4 || detailLower.startsWith('wed') || detailLower.startsWith('thu');
+    const isExcludedGameDay = (cstDay >= 3 && cstDay <= 6) ||
+                              detailLower.startsWith('wed') ||
+                              detailLower.startsWith('thu') ||
+                              detailLower.startsWith('fri') ||
+                              detailLower.startsWith('sat');
 
     if (homeTeam && awayTeam) {
       matchupsByTeamId[homeTeam.team.id] = {
@@ -328,7 +332,7 @@ async function getWeekPlayers(targetWeek) {
         gameStatus: event.status?.type?.detail || event.status?.type?.description || 'Upcoming',
         gameTime: event.date,
         eventId: event.id,
-        isEarlyWeekdayGame
+        isExcludedGameDay
       };
       matchupsByTeamId[awayTeam.team.id] = {
         matchup: `@ ${homeTeam.team.abbreviation}`,
@@ -339,7 +343,7 @@ async function getWeekPlayers(targetWeek) {
         gameStatus: event.status?.type?.detail || event.status?.type?.description || 'Upcoming',
         gameTime: event.date,
         eventId: event.id,
-        isEarlyWeekdayGame
+        isExcludedGameDay
       };
       teamMeta[homeTeam.team.id] = homeTeam.team;
       teamMeta[awayTeam.team.id] = awayTeam.team;
@@ -402,8 +406,8 @@ async function getWeekPlayers(targetWeek) {
     const matchup = matchupsByTeamId[teamId];
     const team = teamMeta[teamId];
 
-    // Exclude players playing in Thursday Night Football or Wednesday games
-    if (matchup?.isEarlyWeekdayGame) {
+    // Exclude players playing in Wednesday, Thursday, Friday, or Saturday games
+    if (matchup?.isExcludedGameDay) {
       continue;
     }
 
