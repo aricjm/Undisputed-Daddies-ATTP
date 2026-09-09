@@ -202,7 +202,7 @@ function renderParlayTab(data) {
           <div class="status-banner-header">
             <div class="status-banner-title">
               <i data-lucide="alert-octagon"></i>
-              <span>PARLAY BUSTED!</span>
+              <span>BUSTED!</span>
             </div>
             <div class="status-banner-sub">${missedMembers.length} leg${missedMembers.length > 1 ? 's' : ''} failed to score TD</div>
           </div>
@@ -257,7 +257,7 @@ function renderParlayTab(data) {
           <div class="status-banner-header">
             <div class="status-banner-title">
               <i data-lucide="zap"></i>
-              <span>PARLAY ALIVE!</span>
+              <span>ALIVE!</span>
             </div>
             <div class="status-banner-sub">All active legs still live! (${scoredMembers.length}/${pickedMembers.length} TDs hit)</div>
           </div>
@@ -948,12 +948,12 @@ function renderStatsTab(data) {
         <div class="stat-card-user">
           <span class="rank-badge ${rank <= 3 ? `top-${rank}` : ''}">#${rank}</span>
           <img src="${memberImg}" class="member-stat-avatar-img clickable" alt="${item.member.name}" onclick="openProfileModal('${item.member.id}')" title="Click to edit profile" onerror="this.onerror=null; this.src='/images/${item.member.id}.png';">
-          <div style="display:flex; flex-direction:column;">
-            <div class="stat-user-name clickable" onclick="openProfileModal('${item.member.id}')" title="Click to edit team name" style="display:flex; align-items:center; gap:6px;">
-              ${item.member.teamName || item.member.name}
+          <div class="stat-user-info">
+            <div class="stat-user-name clickable" onclick="openProfileModal('${item.member.id}')" title="Click to edit team name">
+              <span class="stat-team-title">${item.member.teamName || item.member.name}</span>
               <button class="member-profile-edit-btn" onclick="openProfileModal('${item.member.id}')"><i data-lucide="edit-3" style="width:11px; height:11px;"></i></button>
             </div>
-            <div style="font-size:11px; color:#94a3b8;">${item.member.fullName ? `${item.member.fullName} (${item.member.name})` : item.member.name}</div>
+            <div class="stat-user-subname">${item.member.fullName ? `${item.member.fullName}` : item.member.name}</div>
           </div>
         </div>
         <div class="stat-summary-pill">

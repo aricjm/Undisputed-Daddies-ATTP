@@ -1347,12 +1347,22 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 10px;
 }
 
 .stat-card-user {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.stat-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .rank-badge {
@@ -1360,6 +1370,7 @@ body {
   font-size: 20px;
   color: var(--text-muted);
   width: 24px;
+  flex-shrink: 0;
 }
 
 .rank-badge.top-1 { color: #eab308; }
@@ -1370,6 +1381,26 @@ body {
   font-size: 15px;
   font-weight: 700;
   color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stat-team-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.stat-user-subname {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .stat-summary-pill {
@@ -1379,6 +1410,8 @@ body {
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .win-rate-bar-wrap {
