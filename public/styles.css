@@ -1453,11 +1453,17 @@ body {
   background: rgba(0, 0, 0, 0.2);
   padding: 6px 10px;
   border-radius: 6px;
+  gap: 8px;
 }
 
 .history-chip-player {
   color: #e2e8f0;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
 }
 
 .history-chip-tag {
@@ -1465,6 +1471,8 @@ body {
   font-weight: 800;
   padding: 2px 6px;
   border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .history-chip-tag.scored {

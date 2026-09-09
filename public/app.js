@@ -933,15 +933,18 @@ function renderStatsTab(data) {
     const memberImg = item.member.image || `/images/${item.member.id}.png`;
     
     // History list preview
-    const historyHtml = (item.history || []).map(h => `
-      <div class="history-chip">
-        <span style="color:#94a3b8; font-weight:700;">WK ${h.week}</span>
-        <span class="history-chip-player">${h.player.name} (${h.player.team})</span>
-        <span class="history-chip-tag ${h.result}">
-          ${h.result === 'scored' ? 'TD SCORED' : h.result === 'missed' ? 'NO TD' : 'PENDING'}
-        </span>
-      </div>
-    `).join('');
+    const historyHtml = (item.history || []).map(h => {
+      const matchupStr = h.player.matchup ? `${h.player.team} ${h.player.matchup}` : (h.player.team || '');
+      return `
+        <div class="history-chip">
+          <span style="color:#94a3b8; font-weight:700; flex-shrink:0;">WK ${h.week}</span>
+          <span class="history-chip-player" title="${h.player.name} (${matchupStr})">${h.player.name} (${matchupStr})</span>
+          <span class="history-chip-tag ${h.result}">
+            ${h.result === 'scored' ? 'TD SCORED' : h.result === 'missed' ? 'NO TD' : 'PENDING'}
+          </span>
+        </div>
+      `;
+    }).join('');
 
     card.innerHTML = `
       <div class="stat-card-header">
