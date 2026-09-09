@@ -191,7 +191,7 @@ function renderParlayTab(data) {
     lastRefreshedLabel.textContent = `Last Refreshed: ${formatLastRefreshed(data.lastScoringCheck)}`;
   }
 
-  // Update Parlay Status Live/Busted Banner with Wall of Fame / Shame
+  // Update Parlay Status Live/Busted Banner
   const statusBanner = document.getElementById('parlay-status-banner');
   if (statusBanner) {
     const pickedMembers = (data.members || []).filter(m => m.hasPicked);
@@ -205,90 +205,29 @@ function renderParlayTab(data) {
 
       if (missedMembers.length > 0) {
         statusBanner.className = 'parlay-status-banner busted';
-        let bannerHtml = `
+        statusBanner.innerHTML = `
           <div class="status-banner-header">
             <div class="status-banner-title">
               <i data-lucide="skull"></i>
-              <span>BUSTED!</span>
+              <span>Parlay BUSTED!</span>
             </div>
             <div class="status-banner-sub">${missedMembers.length} leg${missedMembers.length > 1 ? 's' : ''} failed to score TD</div>
           </div>
-
-          <div class="wall-section shame">
-            <div class="wall-title">
-              <span>WEEK ${data.week} WALL OF SHAME</span>
-            </div>
-            <div class="wall-members-grid">
-              ${missedMembers.map(m => `
-                <div class="wall-member-chip">
-                  <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
-                  <div class="wall-chip-info">
-                    <div class="wall-chip-name">${m.teamName || m.name}</div>
-                    <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
-                  </div>
-                  <span class="wall-chip-badge missed">NO TD (FINAL)</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
         `;
-
-        if (scoredMembers.length > 0) {
-          bannerHtml += `
-            <div class="wall-section fame">
-              <div class="wall-title">
-                <span>WEEK ${data.week} WALL OF FAME</span>
-              </div>
-              <div class="wall-members-grid">
-                ${scoredMembers.map(m => `
-                  <div class="wall-member-chip">
-                    <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
-                    <div class="wall-chip-info">
-                      <div class="wall-chip-name">${m.teamName || m.name}</div>
-                      <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
-                    </div>
-                    <span class="wall-chip-badge scored">TD SCORED!</span>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `;
-        }
-
-        statusBanner.innerHTML = bannerHtml;
       } else if (scoredMembers.length === 10) {
         statusBanner.className = 'parlay-status-banner accomplished';
-        let bannerHtml = `
+        statusBanner.innerHTML = `
           <div class="status-banner-header">
             <div class="status-banner-title">
               <i data-lucide="trophy"></i>
               <span>MISSION ACCOMPLISHED!</span>
             </div>
-          </div>
-
-          <div class="wall-section fame">
-            <div class="wall-title">
-              <i data-lucide="crown"></i>
-              <span>WEEK ${data.week} WALL OF FAME (PERFECT 10/10)</span>
-            </div>
-            <div class="wall-members-grid">
-              ${scoredMembers.map(m => `
-                <div class="wall-member-chip">
-                  <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
-                  <div class="wall-chip-info">
-                    <div class="wall-chip-name">${m.teamName || m.name}</div>
-                    <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
-                  </div>
-                  <span class="wall-chip-badge scored">TD SCORED!</span>
-                </div>
-              `).join('')}
-            </div>
+            <div class="status-banner-sub">ALL 10 LEGS HIT! PARLAY CASHES! 💰</div>
           </div>
         `;
-        statusBanner.innerHTML = bannerHtml;
       } else {
         statusBanner.className = 'parlay-status-banner alive';
-        let bannerHtml = `
+        statusBanner.innerHTML = `
           <div class="status-banner-header">
             <div class="status-banner-title">
               <i data-lucide="zap"></i>
@@ -297,31 +236,6 @@ function renderParlayTab(data) {
             <div class="status-banner-sub">(${scoredMembers.length}/${pickedMembers.length} TDs hit)</div>
           </div>
         `;
-
-        if (scoredMembers.length > 0) {
-          bannerHtml += `
-            <div class="wall-section fame">
-              <div class="wall-title">
-                <i data-lucide="trophy"></i>
-                <span>WEEK ${data.week} WALL OF FAME</span>
-              </div>
-              <div class="wall-members-grid">
-                ${scoredMembers.map(m => `
-                  <div class="wall-member-chip">
-                    <img src="${m.image || `/images/${m.id}.png`}" class="wall-chip-avatar" alt="${m.name}" onerror="this.onerror=null; this.src='/images/${m.id}.png';">
-                    <div class="wall-chip-info">
-                      <div class="wall-chip-name">${m.teamName || m.name}</div>
-                      <div class="wall-chip-player">${formatPickMatchup(m.pick.player)}</div>
-                    </div>
-                    <span class="wall-chip-badge scored">TD SCORED!</span>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `;
-        }
-
-        statusBanner.innerHTML = bannerHtml;
       }
     }
   }
@@ -763,7 +677,7 @@ function generateParlayText() {
 
   const parlay = parlayData.parlay || {};
   const profitPerPerson = ((parseFloat(parlay.profit || '0.00')) / 10).toFixed(2);
-  let text = `UNDISPUTED DADDIES - WEEK ${parlayData.week} ATTP\n`;
+  let text = `UNDISPUTED DADDIES - WEEK ${parlayData.week}\n`;
   text += `10-Leg Anytime TD Parlay ($10 Bet)\n`;
   text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Potential Win: $${parlay.payout || '10.00'} | Profit/Person: $${profitPerPerson}\n`;
   text += `Designated Bettor: ${parlayData.bettor?.teamName || parlayData.bettor?.name} (${parlayData.bettor?.fullName || parlayData.bettor?.name})\n\n`;
@@ -835,7 +749,7 @@ async function shareParlaySlip() {
   if (navigator.share) {
     try {
       await navigator.share({
-        title: `Undisputed Daddies Week ${parlayData?.week || 1} ATTP`,
+        title: `Undisputed Daddies Week ${parlayData?.week || 1}`,
         text: text,
         url: window.location.href
       });
