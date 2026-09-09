@@ -6,7 +6,9 @@ const {
   getCurrentCalculatedWeek,
   getAppState,
   updateAppState,
-  calculateParlay
+  calculateParlay,
+  americanToDecimal,
+  decimalToAmerican
 } = require('../cache');
 const {
   getWeekPlayers,
@@ -417,6 +419,7 @@ app.get('/api/stats', async (req, res) => {
         tdsMissed: 0,
         pending: 0,
         winRate: 0,
+        decimalOddsList: [],
         history: []
       };
     }
@@ -429,6 +432,10 @@ app.get('/api/stats', async (req, res) => {
             statsByMember[item.memberId].tdsScored += 1;
           } else if (item.result === 'missed') {
             statsByMember[item.memberId].tdsMissed += 1;
+          }
+          if (item.player?.decimalOdds || item.player?.odds) {
+            const dec = item.player.decimalOdds || americanToDecimal(item.player.odds);
+            statsByMember[item.memberId].decimalOddsList.push(dec);
           }
           statsByMember[item.memberId].history.push({
             week: Number(weekNum),
@@ -449,6 +456,10 @@ app.get('/api/stats', async (req, res) => {
         } else {
           statsByMember[pick.memberId].pending += 1;
         }
+        if (pick.player?.decimalOdds || pick.player?.odds) {
+          const dec = pick.player.decimalOdds || americanToDecimal(pick.player.odds);
+          statsByMember[pick.memberId].decimalOddsList.push(dec);
+        }
         statsByMember[pick.memberId].history.push({
           week: state.currentWeek,
           player: pick.player,
@@ -460,6 +471,17 @@ app.get('/api/stats', async (req, res) => {
     const memberStatsList = Object.values(statsByMember).map(stat => {
       const decidedGames = stat.tdsScored + stat.tdsMissed;
       stat.winRate = decidedGames > 0 ? Math.round((stat.tdsScored / decidedGames) * 100) : 0;
+      
+      const oddsList = stat.decimalOddsList || [];
+      if (oddsList.length > 0) {
+        const avgDec = oddsList.reduce((sum, d) => sum + d, 0) / oddsList.length;
+        stat.avgDecimal = parseFloat(avgDec.toFixed(3));
+        stat.avgOddsDisplay = decimalToAmerican(avgDec);
+      } else {
+        stat.avgDecimal = 0;
+        stat.avgOddsDisplay = '--';
+      }
+
       stat.history.sort((a, b) => b.week - a.week);
       return stat;
     });

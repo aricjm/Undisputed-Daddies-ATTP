@@ -1385,9 +1385,11 @@ body {
 .stat-details-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 11px;
   color: var(--text-muted);
   margin-bottom: 12px;
+  gap: 6px;
 }
 
 .history-chips-list {

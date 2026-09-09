@@ -1131,10 +1131,10 @@ function renderStatsTab(data) {
       </div>
 
       <div class="stat-details-row">
-        <span><b style="color:#22c55e;">${item.tdsScored}</b> TDs Hit</span>
+        <span><b style="color:#22c55e;">${item.tdsScored}</b> Hit</span>
         <span><b style="color:#ef4444;">${item.tdsMissed}</b> Missed</span>
-        <span><b style="color:#94a3b8;">${item.pending}</b> Pending</span>
-        <span><b style="color:#fff;">${item.totalPicks}</b> Total Picks</span>
+        <span><b style="color:#60a5fa;">${item.avgOddsDisplay || '--'}</b> Avg Odds</span>
+        <span><b style="color:#fff;">${item.totalPicks}</b> Picks</span>
       </div>
 
       <div class="history-chips-list">
