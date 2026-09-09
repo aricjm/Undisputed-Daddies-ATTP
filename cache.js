@@ -30,16 +30,16 @@ if (redisUrl && redisToken) {
 const REDIS_STATE_KEY = 'undisputed_daddies_app_state';
 
 const LEAGUE_MEMBERS = [
-  { id: 'aric', name: 'Aric', fullName: 'Aric Myers', teamName: 'Future Father of 3 FC', isAdmin: true, image: '/images/aric.png' },
-  { id: 'cisco', name: 'Cisco', fullName: 'Andrew Cisco', teamName: 'The 29ers', isAdmin: true, image: '/images/cisco.png' },
-  { id: 'wood', name: 'Wood', fullName: 'Nick Wood', teamName: 'The Replacements', isAdmin: false, image: '/images/wood.png' },
-  { id: 'jess', name: 'Jess', fullName: 'Austin Jess', teamName: 'Better Call Pearsall', isAdmin: false, image: '/images/jess.png' },
-  { id: 'bubba', name: 'Bubba', fullName: 'Bubba Maske', teamName: 'What is Love?', isAdmin: false, image: '/images/bubba.png' },
-  { id: 'nate', name: 'Nate', fullName: 'Nate Winegarden', teamName: "Poepsel's Posse", isAdmin: false, image: '/images/nate.png' },
-  { id: 'grady', name: 'Grady', fullName: 'Danny Grady', teamName: 'Our comissioner is a dictator', isAdmin: false, image: '/images/grady.png' },
-  { id: 'weddick', name: 'Weddick', fullName: 'Danny Weddick', teamName: 'Real Champ', isAdmin: false, image: '/images/weddick.png' },
-  { id: 'swehla', name: 'Swehla', fullName: 'Zach Swehla', teamName: 'Unsolicited Dak Pics', isAdmin: false, image: '/images/swehla.png' },
-  { id: 'svatos', name: 'Svatos', fullName: 'Austin Svatos', teamName: 'Pardon My Snake', isAdmin: false, image: '/images/svatos.png' }
+  { id: 'aric', name: 'Aric', fullName: 'Aric Myers', teamName: 'Future Father of 3 FC', isAdmin: true, image: '/images/aric.png', phone: '+13199300868' },
+  { id: 'cisco', name: 'Cisco', fullName: 'Andrew Cisco', teamName: 'The 29ers', isAdmin: true, image: '/images/cisco.png', phone: '+16307469785' },
+  { id: 'wood', name: 'Wood', fullName: 'Nick Wood', teamName: 'The Replacements', isAdmin: false, image: '/images/wood.png', phone: '+13195402441' },
+  { id: 'jess', name: 'Jess', fullName: 'Austin Jess', teamName: 'Better Call Pearsall', isAdmin: false, image: '/images/jess.png', phone: '+13199292816' },
+  { id: 'bubba', name: 'Bubba', fullName: 'Bubba Maske', teamName: 'What is Love?', isAdmin: false, image: '/images/bubba.png', phone: '+13195943804' },
+  { id: 'nate', name: 'Nate', fullName: 'Nate Winegarden', teamName: "Poepsel's Posse", isAdmin: false, image: '/images/nate.png', phone: '+13193317053' },
+  { id: 'grady', name: 'Grady', fullName: 'Danny Grady', teamName: 'Our comissioner is a dictator', isAdmin: false, image: '/images/grady.png', phone: '+16307151269' },
+  { id: 'weddick', name: 'Weddick', fullName: 'Danny Weddick', teamName: 'Real Champ', isAdmin: false, image: '/images/weddick.png', phone: '+16304858603' },
+  { id: 'swehla', name: 'Swehla', fullName: 'Zach Swehla', teamName: 'Unsolicited Dak Pics', isAdmin: false, image: '/images/swehla.png', phone: '+13199360195' },
+  { id: 'svatos', name: 'Svatos', fullName: 'Austin Svatos', teamName: 'Pardon My Snake', isAdmin: false, image: '/images/svatos.png', phone: '+13193308695' }
 ];
 
 // Calculate current NFL week based on Tuesday 2:00 AM CST rollover

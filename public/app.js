@@ -56,6 +56,7 @@ const bettorModal = document.getElementById('bettor-modal');
 const bettorBanner = document.getElementById('bettor-banner');
 const closeBettorModal = document.getElementById('close-bettor-modal');
 const cancelBettorBtn = document.getElementById('cancel-bettor-btn');
+const notifyBettorBtn = document.getElementById('notify-bettor-btn');
 const saveBettorBtn = document.getElementById('save-bettor-btn');
 const adminBettorSelect = document.getElementById('admin-bettor-select');
 const adminBettorReason = document.getElementById('admin-bettor-reason');
@@ -951,6 +952,26 @@ async function saveBettorDesignation() {
   }
 }
 
+// Manually send bet slip SMS to designated bettor
+async function notifyBettor() {
+  try {
+    notifyBettorBtn.disabled = true;
+    notifyBettorBtn.textContent = 'Sending...';
+    const res = await fetch('/api/admin/notify-bettor', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`📱 ${data.message}`);
+    } else {
+      showToast(data.error || 'Failed to send SMS');
+    }
+  } catch (err) {
+    showToast('Network error sending SMS');
+  } finally {
+    notifyBettorBtn.disabled = false;
+    notifyBettorBtn.textContent = '📱 Notify Bettor';
+  }
+}
+
 // Save Manual NFL Week Override
 async function saveWeekOverride() {
   if (!adminWeekSelect) return;
@@ -1210,6 +1231,7 @@ function setupEventListeners() {
   closeBettorModal.addEventListener('click', () => bettorModal.classList.remove('open'));
   cancelBettorBtn.addEventListener('click', () => bettorModal.classList.remove('open'));
   saveBettorBtn.addEventListener('click', saveBettorDesignation);
+  if (notifyBettorBtn) notifyBettorBtn.addEventListener('click', notifyBettor);
   if (saveWeekBtn) saveWeekBtn.addEventListener('click', saveWeekOverride);
 
   // Profile Modal

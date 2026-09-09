@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const https = require('https');
 const {
   LEAGUE_MEMBERS,
   getEnrichedMembers,
@@ -16,6 +17,36 @@ const {
 } = require('../espnService');
 
 const app = express();
+
+// Send SMS via Twilio REST API (no SDK needed)
+function sendSms(toPhone, body) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+  if (!accountSid || !authToken || !fromPhone) {
+    console.log('[SMS] Twilio env vars not set — skipping SMS');
+    return Promise.resolve(null);
+  }
+  const payload = new URLSearchParams({ To: toPhone, From: fromPhone, Body: body }).toString();
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.twilio.com',
+      path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+      }
+    }, res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(JSON.parse(data)));
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -205,11 +236,23 @@ app.post('/api/picks', async (req, res) => {
     state.currentWeekPicks.push(newPick);
     await updateAppState(state);
 
+    const parlay = calculateParlay(state.currentWeekPicks, 10);
+
+    // Auto-notify designated bettor when all 10 picks are in
+    if (state.currentWeekPicks.length === 10) {
+      const bettor = LEAGUE_MEMBERS.find(m => m.id === state.currentBettor);
+      if (bettor?.phone) {
+        const dkUrl = parlay.draftkingsParlayUrl;
+        const msg = `🏈 Undisputed Daddies — All 10 picks are in for Week ${state.currentWeek}! Time to place the bet, ${bettor.name}!\n\nOpen bet slip in DraftKings:\n${dkUrl}`;
+        sendSms(bettor.phone, msg).catch(e => console.error('[SMS] Failed to send:', e));
+      }
+    }
+
     res.json({
       success: true,
       message: `${member.name} successfully picked ${player.name} (${player.odds})!`,
       pick: newPick,
-      parlay: calculateParlay(state.currentWeekPicks, 10)
+      parlay
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -281,6 +324,28 @@ app.post('/api/parlay/refresh', async (req, res) => {
       parlay: calculateParlay(updatedPicks, 10),
       lastScoringCheck: state.lastScoringCheck
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/notify-bettor', async (req, res) => {
+  try {
+    const state = await getAppState();
+    const bettor = LEAGUE_MEMBERS.find(m => m.id === state.currentBettor);
+    if (!bettor) return res.status(400).json({ error: 'No designated bettor set.' });
+    if (!bettor.phone) return res.status(400).json({ error: 'Bettor has no phone number on file.' });
+
+    const parlay = calculateParlay(state.currentWeekPicks, 10);
+    const dkUrl = parlay.draftkingsParlayUrl;
+    const picksCount = state.currentWeekPicks.length;
+    const msg = `🏈 Undisputed Daddies — ${picksCount}/10 picks are in for Week ${state.currentWeek}. Time to place the bet, ${bettor.name}!\n\nOpen bet slip in DraftKings:\n${dkUrl}`;
+
+    const result = await sendSms(bettor.phone, msg);
+    if (result?.error_code) {
+      return res.status(500).json({ error: `Twilio error: ${result.message}` });
+    }
+    res.json({ success: true, message: `SMS sent to ${bettor.name} (${bettor.phone})` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
