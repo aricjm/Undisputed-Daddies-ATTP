@@ -1122,6 +1122,21 @@ body {
   color: var(--text-secondary);
 }
 
+.odds-updated-badge {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.odds-updated-badge i {
+  width: 12px;
+  height: 12px;
+  color: var(--accent-blue);
+}
+
 .cache-badge {
   color: var(--accent-green);
   font-weight: 600;
@@ -1274,6 +1289,414 @@ body {
 .btn-add-pick:hover {
   background: var(--accent-green);
   color: #000;
+}
+
+/* Secondary toggle button on player cards */
+.player-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-custom-toggle {
+  background: rgba(139, 92, 246, 0.12);
+  color: #c084fc;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-custom-toggle:hover {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: #a855f7;
+}
+
+.btn-custom-toggle.added {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--accent-green);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.btn-custom-toggle.added:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ================= Custom Parlay Builder Tab ================= */
+.custom-payout-box {
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.custom-payout-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #8b5cf6, #3b82f6, #ec4899);
+}
+
+.custom-payout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.custom-payout-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-payout-title i {
+  color: #a855f7;
+  width: 16px;
+  height: 16px;
+}
+
+.custom-legs-tag {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.btn-clear-custom {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.btn-clear-custom:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.custom-odds-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  padding: 12px 8px;
+  margin-bottom: 12px;
+}
+
+.odds-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.odds-metric-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.odds-metric-val {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.odds-metric-val.highlight-gold {
+  color: var(--accent-gold);
+}
+
+.odds-metric-val.highlight-green {
+  color: var(--accent-green);
+}
+
+.custom-wager-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.wager-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.wager-pills {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.wager-pill-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.wager-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.wager-pill-btn.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+
+.custom-wager-input-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px 6px;
+  width: 76px;
+}
+
+.custom-wager-input-wrap span {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.custom-wager-input-wrap input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  padding: 2px 4px;
+  text-align: right;
+}
+
+.custom-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-dk-custom {
+  flex: 1;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.btn-dk-custom:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.btn-action-custom {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-action-custom:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.custom-section-heading {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-legs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-leg-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+
+.custom-leg-card:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.custom-leg-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.custom-leg-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.custom-leg-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-leg-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.custom-leg-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.custom-leg-odds {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-green);
+}
+
+.btn-remove-leg {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.btn-remove-leg:hover {
+  color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.custom-empty-state {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-empty-state i {
+  width: 32px;
+  height: 32px;
+  color: #a855f7;
+  margin-bottom: 4px;
+}
+
+.custom-empty-state .empty-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.custom-empty-state .empty-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 320px;
+  line-height: 1.4;
 }
 
 /* Tab 3: Stats & History */
@@ -1492,7 +1915,8 @@ body {
   letter-spacing: 0.5px;
   text-transform: uppercase;
   cursor: pointer;
-  padding: 4px 16px;
+  padding: 4px 6px;
+  flex: 1;
   transition: all 0.2s;
 }
 

@@ -76,6 +76,9 @@ function getDynamicOddsTtl() {
 // Fetch real ATT odds from The Odds API for all current week games
 // Cached in Upstash Redis (dynamic 18h-48h TTL) and in-memory nflCache (30 min) to conserve API credits
 // Returns Map: playerNameLower -> { price: number, outcomeParam: string|null }
+const REDIS_ODDS_UPDATED_KEY = 'undisputed_daddies_odds_last_updated';
+const MEM_ODDS_UPDATED_KEY = 'odds_last_updated_time';
+
 async function fetchRealAttOdds(espnEvents) {
   const memCacheKey = 'odds_api_att_odds_v2';
   const REDIS_ODDS_KEY = 'undisputed_daddies_odds_api_odds_v2';
@@ -102,6 +105,12 @@ async function fetchRealAttOdds(espnEvents) {
         if (playerOddsMap.size > 0) {
           console.log(`[OddsAPI] Loaded ${playerOddsMap.size} players with DraftKings links from Upstash Redis cache`);
           nflCache.set(memCacheKey, playerOddsMap, 1800);
+          if (!nflCache.get(MEM_ODDS_UPDATED_KEY)) {
+            try {
+              const cachedTime = await redisClient.get(REDIS_ODDS_UPDATED_KEY);
+              if (cachedTime) nflCache.set(MEM_ODDS_UPDATED_KEY, cachedTime, 86400);
+            } catch (tErr) {}
+          }
           return playerOddsMap;
         }
       }
@@ -267,12 +276,16 @@ async function fetchRealAttOdds(espnEvents) {
 
     console.log(`[OddsAPI] Loaded real ATT odds with DraftKings outcome IDs for ${playerOddsMap.size} players`);
 
+    const nowIso = new Date().toISOString();
+    nflCache.set(MEM_ODDS_UPDATED_KEY, nowIso, 86400);
+
     // Save to Upstash Redis with dynamic TTL (48h early week / 18h game days) to conserve monthly credits
     if (redisClient && playerOddsMap.size > 0) {
       try {
         const oddsObject = Object.fromEntries(playerOddsMap);
         const dynamicTtl = getDynamicOddsTtl();
         await redisClient.set(REDIS_ODDS_KEY, oddsObject, { ex: dynamicTtl });
+        await redisClient.set(REDIS_ODDS_UPDATED_KEY, nowIso, { ex: dynamicTtl });
         console.log(`[OddsAPI] Saved odds with DraftKings links to Upstash Redis (${Math.round(dynamicTtl / 3600)} hr dynamic TTL)`);
       } catch (err) {
         console.warn('[OddsAPI] Failed to save odds to Redis:', err.message);
@@ -500,11 +513,14 @@ async function getWeekPlayers(targetWeek) {
   // Sort players by best anytime touchdown odds / popularity
   players.sort((a, b) => a.oddsValue - b.oddsValue);
 
+  const oddsLastUpdated = nflCache.get(MEM_ODDS_UPDATED_KEY) || null;
+
   const result = {
     season: weekInfo.season,
     week: weekInfo.week,
     players,
     total: players.length,
+    oddsLastUpdated,
     lastUpdated: new Date().toISOString()
   };
 

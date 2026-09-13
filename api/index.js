@@ -99,35 +99,42 @@ app.get('/api/parlay', async (req, res) => {
     const state = await getAppState();
     const members = await getEnrichedMembers(state);
 
-    // Dynamically enrich picks with DraftKings outcome IDs if missing
-    let weekPlayersMap = null;
-    const enrichedPicks = await Promise.all((state.currentWeekPicks || []).map(async (p) => {
-      if (!p.player?.draftkingsOutcomeId) {
-        try {
-          if (!weekPlayersMap) {
-            const weekData = await getWeekPlayers(state.currentWeek);
-            weekPlayersMap = new Map((weekData?.players || []).map(wp => [String(wp.id), wp]));
-          }
-          const wp = weekPlayersMap.get(String(p.player?.id));
-          if (wp?.draftkingsOutcomeId) {
-            return {
-              ...p,
-              player: {
-                ...p.player,
-                draftkingsOutcomeId: wp.draftkingsOutcomeId,
-                draftkingsBetUrl: wp.draftkingsBetUrl
-              }
-            };
-          }
-        } catch { /* proceed without enrichment */ }
-      }
-      return p;
-    }));
+    // Dynamically sync picks with latest odds and DraftKings outcome IDs (unless locked after 10 picks)
+    if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
+      try {
+        const weekData = await getWeekPlayers(state.currentWeek);
+        const weekPlayersMap = new Map((weekData?.players || []).map(wp => [String(wp.id), wp]));
+        let oddsChanged = false;
 
-    const parlayCalculation = calculateParlay(enrichedPicks, 10);
+        for (const p of state.currentWeekPicks) {
+          const wp = weekPlayersMap.get(String(p.player?.id));
+          if (wp) {
+            if (p.player.odds !== wp.odds || p.player.oddsValue !== wp.oddsValue || p.player.decimalOdds !== wp.decimalOdds) {
+              p.player.odds = wp.odds;
+              p.player.oddsValue = wp.oddsValue;
+              p.player.decimalOdds = wp.decimalOdds;
+              oddsChanged = true;
+            }
+            if (wp.draftkingsOutcomeId && p.player.draftkingsOutcomeId !== wp.draftkingsOutcomeId) {
+              p.player.draftkingsOutcomeId = wp.draftkingsOutcomeId;
+              p.player.draftkingsBetUrl = wp.draftkingsBetUrl;
+              oddsChanged = true;
+            }
+          }
+        }
+
+        if (oddsChanged) {
+          await updateAppState(state);
+        }
+      } catch (err) {
+        console.warn('[Parlay] Failed updating pick odds:', err.message);
+      }
+    }
+
+    const parlayCalculation = calculateParlay(state.currentWeekPicks, 10);
 
     const memberStatuses = members.map(m => {
-      const pick = enrichedPicks.find(p => p.memberId === m.id);
+      const pick = (state.currentWeekPicks || []).find(p => p.memberId === m.id);
       return {
         ...m,
         hasPicked: !!pick,
@@ -145,7 +152,7 @@ app.get('/api/parlay', async (req, res) => {
       bettor: currentBettorMember,
       bettorReason: state.bettorReason || '',
       members: memberStatuses,
-      picksCount: enrichedPicks.length,
+      picksCount: (state.currentWeekPicks || []).length,
       totalMembers: members.length,
       parlay: parlayCalculation,
       lastScoringCheck: state.lastScoringCheck
@@ -160,16 +167,27 @@ app.get('/api/players', async (req, res) => {
     const state = await getAppState();
     const weekData = await getWeekPlayers(state.currentWeek);
     
-    const pickedPlayerIds = new Set(state.currentWeekPicks.map(p => String(p.player.id)));
-    const availablePlayers = weekData.players.filter(p => !pickedPlayerIds.has(String(p.id)));
+    // Set of player IDs already picked this week
+    const pickedMap = new Map((state.currentWeekPicks || []).map(p => [String(p.player.id), p.memberName]));
+
+    const allPlayersWithStatus = (weekData.players || []).map(p => ({
+      ...p,
+      isPickedForLeague: pickedMap.has(String(p.id)),
+      pickedByMember: pickedMap.get(String(p.id)) || null
+    }));
+
+    // Filter out already taken players for the league pick view
+    const availablePlayers = allPlayersWithStatus.filter(p => !p.isPickedForLeague);
 
     res.json({
       week: state.currentWeek,
       season: weekData.season,
       totalAvailable: availablePlayers.length,
       totalRoster: weekData.players.length,
-      pickedCount: pickedPlayerIds.size,
-      players: availablePlayers
+      pickedCount: pickedMap.size,
+      oddsLastUpdated: weekData.oddsLastUpdated || weekData.lastUpdated || null,
+      players: availablePlayers,
+      allPlayers: allPlayersWithStatus
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

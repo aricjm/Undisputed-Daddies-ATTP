@@ -25,6 +25,7 @@ function refreshIcons() {
 // DOM Elements
 const parlayLegsList = document.getElementById('parlay-legs-list');
 const playerCardList = document.getElementById('player-card-list');
+const oddsUpdatedDisplay = document.getElementById('odds-updated-display');
 const leaderboardContainer = document.getElementById('leaderboard-container');
 const designatedBettorName = document.getElementById('designated-bettor-name');
 const designatedBettorReason = document.getElementById('designated-bettor-reason');
@@ -43,6 +44,27 @@ const legsCount = document.getElementById('legs-count');
 const openDraftkingsBtn = document.getElementById('open-draftkings-btn');
 const copySlipBtn = document.getElementById('copy-slip-btn');
 const shareSlipBtn = document.getElementById('share-slip-btn');
+
+// Custom Parlay DOM Elements (100% client-side, stored in localStorage - zero Redis usage)
+const customLegsBadge = document.getElementById('custom-legs-badge');
+const customTotalOdds = document.getElementById('custom-total-odds');
+const customTotalPayout = document.getElementById('custom-total-payout');
+const customTotalProfit = document.getElementById('custom-total-profit');
+const customLegsCountText = document.getElementById('custom-legs-count-text');
+const customLegsList = document.getElementById('custom-legs-list');
+const clearCustomParlayBtn = document.getElementById('clear-custom-parlay-btn');
+const customWagerInput = document.getElementById('custom-wager-input');
+const customWagerPills = document.querySelectorAll('.wager-pill-btn');
+const customOpenDkBtn = document.getElementById('custom-open-dk-btn');
+const customShareBtn = document.getElementById('custom-share-btn');
+const customCopyBtn = document.getElementById('custom-copy-btn');
+const customPlayerSearch = document.getElementById('custom-player-search');
+const customClearSearch = document.getElementById('custom-clear-search');
+const customPlayerPoolList = document.getElementById('custom-player-pool-list');
+
+let customParlayPlayerIds = new Set(JSON.parse(localStorage.getItem('undisputed_custom_parlay_ids') || '[]'));
+let customParlayWager = parseFloat(localStorage.getItem('undisputed_custom_parlay_wager')) || 10;
+let customPosFilter = 'ALL';
 
 // Modals
 const pickModal = document.getElementById('pick-modal');
@@ -126,6 +148,8 @@ function switchTab(tabId) {
     loadParlayData(false);
   } else if (tabId === 'tab-players') {
     loadPlayersData(false);
+  } else if (tabId === 'tab-custom') {
+    loadCustomParlayData();
   } else if (tabId === 'tab-stats') {
     loadStatsData(false);
   }
@@ -133,6 +157,7 @@ function switchTab(tabId) {
 
 // Initial Data Loading (loadParlayData already includes all 10 members with overrides, saving an API call)
 async function loadInitialData() {
+  renderCustomParlay();
   await loadParlayData();
   refreshIcons();
 }
@@ -158,11 +183,18 @@ async function loadParlayData(force = false) {
 
   try {
     const res = await fetch('/api/parlay');
-    parlayData = await res.json();
+    if (!res.ok) {
+      throw new Error(`Server returned status ${res.status}`);
+    }
+    const data = await res.json();
+    if (data.error || !Array.isArray(data.members)) {
+      throw new Error(data.error || 'Invalid parlay data');
+    }
+    parlayData = data;
     lastParlayLoadTime = Date.now();
     renderParlayTab(parlayData);
   } catch (err) {
-    parlayLegsList.innerHTML = `<div class="loading-state">Failed to load parlay data.</div>`;
+    parlayLegsList.innerHTML = `<div class="loading-state">Failed to load parlay data. Please retry.</div>`;
     console.error(err);
   }
 }
@@ -186,6 +218,28 @@ function formatLastRefreshed(dateStr) {
   }
 }
 
+// Format odds last updated timestamp for display
+function formatOddsUpdated(dateStr) {
+  if (!dateStr) return 'Recently';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Recently';
+    const now = new Date();
+    const diffSec = Math.round((now - d) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) {
+      const mins = Math.max(1, Math.floor(diffSec / 60));
+      return `${mins}m ago`;
+    }
+    if (diffSec < 86400 && d.getDate() === now.getDate()) {
+      return `Today at ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return 'Recently';
+  }
+}
+
 // Format player name with team and weekly matchup (e.g. Derrick Henry (BAL @ IND))
 function formatPickMatchup(player) {
   if (!player) return '';
@@ -195,6 +249,7 @@ function formatPickMatchup(player) {
 
 // Render Parlay Tab
 function renderParlayTab(data) {
+  if (!data || !Array.isArray(data.members)) return;
   if (data.members && data.members.length > 0) {
     leagueMembers = data.members;
   }
@@ -388,8 +443,14 @@ async function loadPlayersData(force = false) {
   try {
     const res = await fetch('/api/players');
     const data = await res.json();
-    allPlayers = data.players || [];
+    allPlayers = data.allPlayers || data.players || [];
     lastPlayersLoadTime = Date.now();
+
+    if (oddsUpdatedDisplay && data.oddsLastUpdated) {
+      oddsUpdatedDisplay.innerHTML = `<i data-lucide="clock"></i> Odds updated: ${formatOddsUpdated(data.oddsLastUpdated)}`;
+      refreshIcons();
+    }
+
     applyFilters();
   } catch (err) {
     playerCardList.innerHTML = `<div class="loading-state">Failed to load NFL players. Please retry.</div>`;
@@ -397,11 +458,15 @@ async function loadPlayersData(force = false) {
   }
 }
 
-// Filter and search players
+// Filter and search players for the League Pick List
 function applyFilters() {
   const query = (playerSearch.value || '').trim().toLowerCase();
   
   filteredPlayers = allPlayers.filter(p => {
+    // Exclude players already chosen for the official 10-man league parlay
+    if (p.isPickedForLeague) {
+      return false;
+    }
     // Position filter
     if (currentPosFilter !== 'ALL' && p.position !== currentPosFilter) {
       return false;
@@ -465,9 +530,15 @@ function renderPlayerCards() {
       </div>
       <div class="player-card-right">
         <span class="player-att-odds">${player.odds}</span>
-        <button class="btn-add-pick" onclick="openPickModalForPlayer('${player.id}')">
-          <i data-lucide="plus" style="width:13px; height:13px;"></i> Add Pick
-        </button>
+        <div class="player-actions-group">
+          <button class="btn-custom-toggle ${customParlayPlayerIds.has(String(player.id)) ? 'added' : ''}" onclick="toggleCustomParlayPlayer('${player.id}')" title="${customParlayPlayerIds.has(String(player.id)) ? 'Remove from My Parlay' : 'Add to My Parlay'}">
+            <i data-lucide="${customParlayPlayerIds.has(String(player.id)) ? 'check' : 'bookmark-plus'}" style="width:12px; height:12px;"></i>
+            <span>${customParlayPlayerIds.has(String(player.id)) ? 'Added' : 'My Parlay'}</span>
+          </button>
+          <button class="btn-add-pick" onclick="openPickModalForPlayer('${player.id}')">
+            <i data-lucide="plus" style="width:13px; height:13px;"></i> Add Pick
+          </button>
+        </div>
       </div>
     `;
     playerCardList.appendChild(card);
@@ -928,6 +999,331 @@ async function shareParlaySlip() {
   }
 }
 
+// ==========================================
+// CLIENT-SIDE CUSTOM PARLAY BUILDER (ZERO REDIS USAGE)
+// ==========================================
+
+function americanToDecimal(american) {
+  const num = typeof american === 'number' ? american : parseInt(american, 10);
+  if (isNaN(num)) return 2.0;
+  if (num > 0) {
+    return (num / 100) + 1;
+  } else if (num < 0) {
+    return (100 / Math.abs(num)) + 1;
+  }
+  return 2.0;
+}
+
+function decimalToAmerican(decimal) {
+  if (!decimal || decimal <= 1.0) return '+0';
+  if (decimal >= 2.0) {
+    return '+' + Math.round((decimal - 1) * 100);
+  } else {
+    return '-' + Math.round(100 / (decimal - 1));
+  }
+}
+
+// Calculate custom parlay odds, potential payout, profit, and DK link
+function calculateCustomParlay(selectedPlayers, wager = 10) {
+  if (!selectedPlayers || selectedPlayers.length === 0) {
+    return {
+      totalOddsAmerican: '+0',
+      totalDecimal: 1.0,
+      payout: wager.toFixed(2),
+      profit: '0.00',
+      legsCount: 0,
+      draftkingsParlayUrl: 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers',
+      outcomeCount: 0
+    };
+  }
+
+  let totalDecimal = 1.0;
+  for (const p of selectedPlayers) {
+    const dec = p.decimalOdds || americanToDecimal(p.odds || '+150');
+    totalDecimal *= dec;
+  }
+
+  const payout = wager * totalDecimal;
+  const profit = Math.max(0, payout - wager);
+  const totalOddsAmerican = decimalToAmerican(totalDecimal);
+
+  const outcomeIds = selectedPlayers
+    .map(p => p.draftkingsOutcomeId)
+    .filter(Boolean);
+
+  const draftkingsParlayUrl = outcomeIds.length > 0
+    ? `https://sportsbook.draftkings.com/?outcomes=${outcomeIds.join('+')}`
+    : 'https://sportsbook.draftkings.com/leagues/football/nfl?category=td-scorers';
+
+  return {
+    totalOddsAmerican,
+    totalDecimal: parseFloat(totalDecimal.toFixed(4)),
+    payout: payout.toFixed(2),
+    profit: profit.toFixed(2),
+    legsCount: selectedPlayers.length,
+    draftkingsParlayUrl,
+    outcomeCount: outcomeIds.length
+  };
+}
+
+function saveCustomParlayState() {
+  try {
+    localStorage.setItem('undisputed_custom_parlay_ids', JSON.stringify(Array.from(customParlayPlayerIds)));
+    localStorage.setItem('undisputed_custom_parlay_wager', String(customParlayWager));
+  } catch (e) {}
+}
+
+function getSelectedCustomPlayers() {
+  const map = new Map((allPlayers || []).map(p => [String(p.id), p]));
+  const result = [];
+  for (const id of customParlayPlayerIds) {
+    const player = map.get(String(id));
+    if (player) result.push(player);
+  }
+  return result;
+}
+
+function toggleCustomParlayPlayer(playerId) {
+  const idStr = String(playerId);
+  if (customParlayPlayerIds.has(idStr)) {
+    customParlayPlayerIds.delete(idStr);
+    showToast('Removed from My Parlay');
+  } else {
+    customParlayPlayerIds.add(idStr);
+    const p = allPlayers.find(x => String(x.id) === idStr);
+    showToast(`Added ${p ? p.name : 'player'} to My Parlay!`);
+  }
+  saveCustomParlayState();
+  renderCustomParlay();
+  renderCustomPlayerPool();
+  if (currentTab === 'tab-players') {
+    applyFilters();
+  }
+}
+
+function clearCustomParlay() {
+  if (customParlayPlayerIds.size === 0) return;
+  if (!confirm('Clear all legs from your custom parlay?')) return;
+  customParlayPlayerIds.clear();
+  saveCustomParlayState();
+  renderCustomParlay();
+  renderCustomPlayerPool();
+  if (currentTab === 'tab-players') {
+    applyFilters();
+  }
+  showToast('Cleared custom parlay');
+}
+
+function setCustomWager(amount) {
+  const num = Math.max(1, parseFloat(amount) || 10);
+  customParlayWager = num;
+  if (customWagerInput) customWagerInput.value = num;
+  document.querySelectorAll('.wager-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.wager) === num);
+  });
+  saveCustomParlayState();
+  renderCustomParlay();
+}
+
+function renderCustomParlay() {
+  const selected = getSelectedCustomPlayers();
+  const parlay = calculateCustomParlay(selected, customParlayWager);
+
+  if (customLegsBadge) customLegsBadge.textContent = `${parlay.legsCount} LEGS`;
+  if (customLegsCountText) customLegsCountText.textContent = parlay.legsCount;
+  if (customTotalOdds) customTotalOdds.textContent = parlay.totalOddsAmerican || '+0';
+  if (customTotalPayout) customTotalPayout.textContent = `$${parlay.payout}`;
+  if (customTotalProfit) customTotalProfit.textContent = `$${parlay.profit}`;
+
+  if (customOpenDkBtn) {
+    customOpenDkBtn.href = parlay.draftkingsParlayUrl;
+  }
+
+  if (customWagerInput) {
+    customWagerInput.value = customParlayWager;
+  }
+  document.querySelectorAll('.wager-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.wager) === customParlayWager);
+  });
+
+  if (!customLegsList) return;
+
+  if (selected.length === 0) {
+    customLegsList.innerHTML = `
+      <div class="custom-empty-state">
+        <i data-lucide="sparkles"></i>
+        <div class="empty-title">No Players Added Yet</div>
+        <div class="empty-desc">Select players below or in the Player List to build your custom anytime touchdown parlay and calculate your payout.</div>
+      </div>
+    `;
+    refreshIcons();
+    return;
+  }
+
+  customLegsList.innerHTML = '';
+  selected.forEach(player => {
+    const card = document.createElement('div');
+    card.className = 'custom-leg-card';
+    card.innerHTML = `
+      <div class="custom-leg-left">
+        <div class="player-avatar-wrap">
+          <img src="${player.headshot}" class="player-headshot" onerror="this.src='https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/default.png'" alt="${player.name}">
+          <div class="team-badge-overlay">
+            <img src="${player.teamLogo}" onerror="this.style.display='none'" alt="${player.teamAbbr}">
+          </div>
+        </div>
+        <div class="custom-leg-info">
+          <div class="custom-leg-name">${player.name}</div>
+          <div class="custom-leg-sub">
+            <span class="player-pos">${player.position}</span>
+            <span>${player.teamAbbr} ${player.matchup}</span>
+          </div>
+        </div>
+      </div>
+      <div class="custom-leg-right">
+        <span class="custom-leg-odds">${player.odds}</span>
+        <button class="btn-remove-leg" onclick="toggleCustomParlayPlayer('${player.id}')" title="Remove leg">
+          <i data-lucide="trash-2" style="width:15px; height:15px;"></i>
+        </button>
+      </div>
+    `;
+    customLegsList.appendChild(card);
+  });
+  refreshIcons();
+}
+
+function renderCustomPlayerPool() {
+  if (!customPlayerPoolList) return;
+
+  const query = (customPlayerSearch?.value || '').trim().toLowerCase();
+
+  const filtered = (allPlayers || []).filter(p => {
+    if (customPosFilter !== 'ALL' && p.position !== customPosFilter) return false;
+    if (query) {
+      const matchName = p.name.toLowerCase().includes(query);
+      const matchTeam = p.teamName.toLowerCase().includes(query) || p.teamAbbr.toLowerCase().includes(query);
+      const matchOpp = p.opponent.toLowerCase().includes(query);
+      const matchPos = p.position.toLowerCase() === query;
+      if (!matchName && !matchTeam && !matchOpp && !matchPos) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    customPlayerPoolList.innerHTML = `
+      <div class="loading-state">
+        <i data-lucide="folder-search" style="width:28px; height:28px; margin-bottom:8px;"></i>
+        <div>No players found matching filter.</div>
+      </div>
+    `;
+    refreshIcons();
+    return;
+  }
+
+  const displaySlice = filtered.slice(0, 60);
+
+  customPlayerPoolList.innerHTML = '';
+  displaySlice.forEach(player => {
+    const isAdded = customParlayPlayerIds.has(String(player.id));
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    card.innerHTML = `
+      <div class="player-card-left">
+        <div class="player-avatar-wrap">
+          <img src="${player.headshot}" class="player-headshot" onerror="this.src='https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/default.png'" alt="${player.name}">
+          <div class="team-badge-overlay">
+            <img src="${player.teamLogo}" onerror="this.style.display='none'" alt="${player.teamAbbr}">
+          </div>
+        </div>
+        <div class="player-card-info">
+          <div class="player-title-row">
+            <span class="player-name">${player.name}</span>
+            <span class="player-pos">${player.position}</span>
+          </div>
+          <div class="player-matchup-row">
+            <span>${player.teamAbbr}</span>
+            <span>${player.matchup}</span>
+          </div>
+          <div class="player-game-status">${player.gameStatus}</div>
+        </div>
+      </div>
+      <div class="player-card-right">
+        <span class="player-att-odds">${player.odds}</span>
+        <button class="btn-custom-toggle ${isAdded ? 'added' : ''}" onclick="toggleCustomParlayPlayer('${player.id}')">
+          <i data-lucide="${isAdded ? 'check' : 'plus'}" style="width:13px; height:13px;"></i>
+          <span>${isAdded ? 'In Parlay' : 'Add Leg'}</span>
+        </button>
+      </div>
+    `;
+    customPlayerPoolList.appendChild(card);
+  });
+  refreshIcons();
+}
+
+async function loadCustomParlayData() {
+  if (allPlayers.length === 0) {
+    await loadPlayersData(false);
+  }
+  renderCustomParlay();
+  renderCustomPlayerPool();
+}
+
+function generateCustomParlayText() {
+  const selected = getSelectedCustomPlayers();
+  const parlay = calculateCustomParlay(selected, customParlayWager);
+
+  let text = `🏈 MY ANYTIME TD PARLAY (${selected.length} LEGS)\n`;
+  text += `═════════════════════════════════\n\n`;
+
+  selected.forEach((p, idx) => {
+    text += `${idx + 1}. ${p.name} (${p.position}) — ${p.teamAbbr} ${p.matchup}\n`;
+    text += `   Odds: ${p.odds}\n\n`;
+  });
+
+  text += `═════════════════════════════════\n`;
+  text += `Total Odds: ${parlay.totalOddsAmerican || '+0'} | Wager: $${customParlayWager.toFixed(2)}\n`;
+  text += `Potential Win: $${parlay.payout} (Net: +$${parlay.profit})\n`;
+  text += `DraftKings Slip: ${parlay.draftkingsParlayUrl}\n`;
+  return text;
+}
+
+async function copyCustomParlaySlip() {
+  const text = generateCustomParlayText();
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    showToast('Custom parlay copied to clipboard!');
+  } catch (err) {
+    showToast('Failed to copy parlay');
+  }
+}
+
+async function shareCustomParlaySlip() {
+  const text = generateCustomParlayText();
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `My NFL Anytime TD Parlay (${customParlayPlayerIds.size} Legs)`,
+        text: text
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        copyCustomParlaySlip();
+      }
+    }
+  } else {
+    copyCustomParlaySlip();
+  }
+}
+
 // Save Bettor Changes
 async function saveBettorDesignation() {
   const bettorId = adminBettorSelect.value;
@@ -1243,6 +1639,54 @@ function setupEventListeners() {
   if (openDraftkingsBtn) openDraftkingsBtn.addEventListener('click', openDraftKingsBetSlip);
   if (copySlipBtn) copySlipBtn.addEventListener('click', () => copyParlaySlip(false));
   if (shareSlipBtn) shareSlipBtn.addEventListener('click', shareParlaySlip);
+
+  // Custom Parlay Builder Listeners (100% client-side)
+  if (clearCustomParlayBtn) clearCustomParlayBtn.addEventListener('click', clearCustomParlay);
+  if (customShareBtn) customShareBtn.addEventListener('click', shareCustomParlaySlip);
+  if (customCopyBtn) customCopyBtn.addEventListener('click', copyCustomParlaySlip);
+
+  if (customWagerPills) {
+    customWagerPills.forEach(btn => {
+      btn.addEventListener('click', () => {
+        setCustomWager(btn.dataset.wager);
+      });
+    });
+  }
+
+  if (customWagerInput) {
+    customWagerInput.addEventListener('input', () => {
+      setCustomWager(customWagerInput.value);
+    });
+  }
+
+  if (customPlayerSearch) {
+    customPlayerSearch.addEventListener('input', () => {
+      if (customClearSearch) {
+        customClearSearch.style.display = customPlayerSearch.value ? 'block' : 'none';
+      }
+      renderCustomPlayerPool();
+    });
+  }
+
+  if (customClearSearch) {
+    customClearSearch.addEventListener('click', () => {
+      customPlayerSearch.value = '';
+      customClearSearch.style.display = 'none';
+      renderCustomPlayerPool();
+    });
+  }
+
+  const customPills = document.querySelectorAll('#custom-pos-pills .pill-btn');
+  if (customPills) {
+    customPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        customPills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        customPosFilter = pill.dataset.cpos || 'ALL';
+        renderCustomPlayerPool();
+      });
+    });
+  }
 
   profileImageInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) {
