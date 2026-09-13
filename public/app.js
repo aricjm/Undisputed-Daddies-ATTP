@@ -1151,7 +1151,7 @@ function renderCustomParlay() {
   if (selected.length === 0) {
     customLegsList.innerHTML = `
       <div class="custom-empty-state">
-        <i data-lucide="sparkles"></i>
+        <i data-lucide="hammer"></i>
         <div class="empty-title">No Players Added Yet</div>
         <div class="empty-desc">Select players below or in the Player List to build your custom anytime touchdown parlay and calculate your payout.</div>
       </div>
