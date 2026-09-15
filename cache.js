@@ -231,6 +231,143 @@ function calculateParlay(picks, wager = 10) {
   };
 }
 
+// App Opens & Usage Tracking (Persisted in Redis)
+const REDIS_OPENS_COUNT_KEY = 'undisputed_daddies_app_opens_count';
+const REDIS_OPENS_LOG_KEY = 'undisputed_daddies_app_opens_log';
+const REDIS_OPENS_DAILY_KEY = 'undisputed_daddies_app_opens_daily';
+
+const REDIS_CUSTOM_USES_COUNT_KEY = 'undisputed_daddies_custom_parlay_uses_count';
+const REDIS_CUSTOM_USES_LOG_KEY = 'undisputed_daddies_custom_parlay_uses_log';
+const REDIS_CUSTOM_USES_DAILY_KEY = 'undisputed_daddies_custom_parlay_uses_daily';
+
+let localOpensCount = 0;
+const localOpensLog = [];
+let localCustomUsesCount = 0;
+const localCustomUsesLog = [];
+
+async function trackAppOpen(metadata = {}) {
+  const now = new Date();
+  const cstStr = now.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+  const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(now); // YYYY-MM-DD
+
+  const entry = {
+    timestamp: now.toISOString(),
+    centralTime: cstStr,
+    date: dayKey,
+    device: metadata.device || 'unknown',
+    referrer: metadata.referrer || 'direct'
+  };
+
+  if (redisClient) {
+    try {
+      // 1. Increment total lifetime counter
+      const totalOpens = await redisClient.incr(REDIS_OPENS_COUNT_KEY);
+
+      // 2. Increment daily counter
+      await redisClient.hincrby(REDIS_OPENS_DAILY_KEY, dayKey, 1);
+
+      // 3. Keep a log of recent opens (last 500 entries)
+      await redisClient.lpush(REDIS_OPENS_LOG_KEY, JSON.stringify(entry));
+      await redisClient.ltrim(REDIS_OPENS_LOG_KEY, 0, 499);
+
+      return { totalOpens, entry };
+    } catch (err) {
+      console.warn('[Tracking] Redis error tracking open:', err.message);
+    }
+  }
+
+  localOpensCount++;
+  localOpensLog.unshift(entry);
+  if (localOpensLog.length > 500) localOpensLog.pop();
+  return { totalOpens: localOpensCount, entry };
+}
+
+async function trackCustomParlayUse(metadata = {}) {
+  const now = new Date();
+  const cstStr = now.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+  const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(now);
+
+  const entry = {
+    timestamp: now.toISOString(),
+    centralTime: cstStr,
+    date: dayKey,
+    legsCount: metadata.legsCount || 0,
+    totalOdds: metadata.totalOdds || '+0',
+    wager: metadata.wager || 10,
+    payout: metadata.payout || '0.00',
+    players: metadata.players || [],
+    device: metadata.device || 'unknown'
+  };
+
+  if (redisClient) {
+    try {
+      const totalCustomUses = await redisClient.incr(REDIS_CUSTOM_USES_COUNT_KEY);
+      await redisClient.hincrby(REDIS_CUSTOM_USES_DAILY_KEY, dayKey, 1);
+      await redisClient.lpush(REDIS_CUSTOM_USES_LOG_KEY, JSON.stringify(entry));
+      await redisClient.ltrim(REDIS_CUSTOM_USES_LOG_KEY, 0, 499);
+      return { totalCustomUses, entry };
+    } catch (err) {
+      console.warn('[Tracking] Redis error tracking custom parlay use:', err.message);
+    }
+  }
+
+  localCustomUsesCount++;
+  localCustomUsesLog.unshift(entry);
+  if (localCustomUsesLog.length > 500) localCustomUsesLog.pop();
+  return { totalCustomUses: localCustomUsesCount, entry };
+}
+
+async function getAppOpenStats(limit = 100) {
+  if (redisClient) {
+    try {
+      const [total, daily, logs, totalCustom, dailyCustom, logsCustom] = await Promise.all([
+        redisClient.get(REDIS_OPENS_COUNT_KEY),
+        redisClient.hgetall(REDIS_OPENS_DAILY_KEY),
+        redisClient.lrange(REDIS_OPENS_LOG_KEY, 0, limit - 1),
+        redisClient.get(REDIS_CUSTOM_USES_COUNT_KEY),
+        redisClient.hgetall(REDIS_CUSTOM_USES_DAILY_KEY),
+        redisClient.lrange(REDIS_CUSTOM_USES_LOG_KEY, 0, limit - 1)
+      ]);
+
+      const parsedLogs = (logs || []).map(item => {
+        try {
+          return typeof item === 'string' ? JSON.parse(item) : item;
+        } catch {
+          return item;
+        }
+      });
+
+      const parsedCustomLogs = (logsCustom || []).map(item => {
+        try {
+          return typeof item === 'string' ? JSON.parse(item) : item;
+        } catch {
+          return item;
+        }
+      });
+
+      return {
+        totalOpens: Number(total) || 0,
+        dailyOpens: daily || {},
+        recentOpens: parsedLogs,
+        totalCustomUses: Number(totalCustom) || 0,
+        dailyCustomUses: dailyCustom || {},
+        recentCustomUses: parsedCustomLogs
+      };
+    } catch (err) {
+      console.warn('[Tracking] Redis error fetching stats:', err.message);
+    }
+  }
+
+  return {
+    totalOpens: localOpensCount,
+    dailyOpens: {},
+    recentOpens: localOpensLog.slice(0, limit),
+    totalCustomUses: localCustomUsesCount,
+    dailyCustomUses: {},
+    recentCustomUses: localCustomUsesLog.slice(0, limit)
+  };
+}
+
 module.exports = {
   nflCache,
   redisClient,
@@ -242,5 +379,8 @@ module.exports = {
   updateAppState,
   americanToDecimal,
   decimalToAmerican,
-  calculateParlay
+  calculateParlay,
+  trackAppOpen,
+  trackCustomParlayUse,
+  getAppOpenStats
 };

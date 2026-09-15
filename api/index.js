@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const https = require('https');
 const {
   LEAGUE_MEMBERS,
   getEnrichedMembers,
@@ -9,7 +8,10 @@ const {
   updateAppState,
   calculateParlay,
   americanToDecimal,
-  decimalToAmerican
+  decimalToAmerican,
+  trackAppOpen,
+  trackCustomParlayUse,
+  getAppOpenStats
 } = require('../cache');
 const {
   getWeekPlayers,
@@ -17,36 +19,6 @@ const {
 } = require('../espnService');
 
 const app = express();
-
-// Send SMS via Twilio REST API (no SDK needed)
-function sendSms(toPhone, body) {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromPhone = process.env.TWILIO_PHONE_NUMBER;
-  if (!accountSid || !authToken || !fromPhone) {
-    console.log('[SMS] Twilio env vars not set — skipping SMS');
-    return Promise.resolve(null);
-  }
-  const payload = new URLSearchParams({ To: toPhone, From: fromPhone, Body: body }).toString();
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: 'api.twilio.com',
-      path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64')
-      }
-    }, res => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(JSON.parse(data)));
-    });
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-  });
-}
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -99,26 +71,34 @@ app.get('/api/parlay', async (req, res) => {
     const state = await getAppState();
     const members = await getEnrichedMembers(state);
 
-    // Dynamically sync picks with latest odds and DraftKings outcome IDs (unless locked after 10 picks)
+    // Dynamically sync picks with latest odds and DraftKings outcome IDs (until game kickoff)
     if (state.currentWeekPicks && state.currentWeekPicks.length > 0) {
       try {
         const weekData = await getWeekPlayers(state.currentWeek);
         const weekPlayersMap = new Map((weekData?.players || []).map(wp => [String(wp.id), wp]));
         let oddsChanged = false;
+        const nowMs = Date.now();
 
         for (const p of state.currentWeekPicks) {
           const wp = weekPlayersMap.get(String(p.player?.id));
           if (wp) {
-            if (p.player.odds !== wp.odds || p.player.oddsValue !== wp.oddsValue || p.player.decimalOdds !== wp.decimalOdds) {
-              p.player.odds = wp.odds;
-              p.player.oddsValue = wp.oddsValue;
-              p.player.decimalOdds = wp.decimalOdds;
-              oddsChanged = true;
-            }
-            if (wp.draftkingsOutcomeId && p.player.draftkingsOutcomeId !== wp.draftkingsOutcomeId) {
-              p.player.draftkingsOutcomeId = wp.draftkingsOutcomeId;
-              p.player.draftkingsBetUrl = wp.draftkingsBetUrl;
-              oddsChanged = true;
+            // Check if game has already started (gameTime is in past, or status is scored/missed)
+            const gameTimeMs = (p.player?.gameTime || wp.gameTime) ? new Date(p.player?.gameTime || wp.gameTime).getTime() : 0;
+            const isGameStarted = (gameTimeMs > 0 && nowMs >= gameTimeMs) || p.hasScored || p.status === 'scored' || p.status === 'missed';
+
+            // Only update odds if game has NOT started yet
+            if (!isGameStarted) {
+              if (p.player.odds !== wp.odds || p.player.oddsValue !== wp.oddsValue || p.player.decimalOdds !== wp.decimalOdds) {
+                p.player.odds = wp.odds;
+                p.player.oddsValue = wp.oddsValue;
+                p.player.decimalOdds = wp.decimalOdds;
+                oddsChanged = true;
+              }
+              if (wp.draftkingsOutcomeId && p.player.draftkingsOutcomeId !== wp.draftkingsOutcomeId) {
+                p.player.draftkingsOutcomeId = wp.draftkingsOutcomeId;
+                p.player.draftkingsBetUrl = wp.draftkingsBetUrl;
+                oddsChanged = true;
+              }
             }
           }
         }
@@ -256,16 +236,6 @@ app.post('/api/picks', async (req, res) => {
 
     const parlay = calculateParlay(state.currentWeekPicks, 10);
 
-    // Auto-notify designated bettor when all 10 picks are in
-    if (state.currentWeekPicks.length === 10) {
-      const bettor = LEAGUE_MEMBERS.find(m => m.id === state.currentBettor);
-      if (bettor?.phone) {
-        const dkUrl = parlay.draftkingsParlayUrl;
-        const msg = `🏈 Undisputed Daddies — All 10 picks are in for Week ${state.currentWeek}! Time to place the bet, ${bettor.name}!\n\nOpen bet slip in DraftKings:\n${dkUrl}`;
-        sendSms(bettor.phone, msg).catch(e => console.error('[SMS] Failed to send:', e));
-      }
-    }
-
     res.json({
       success: true,
       message: `${member.name} successfully picked ${player.name} (${player.odds})!`,
@@ -342,28 +312,6 @@ app.post('/api/parlay/refresh', async (req, res) => {
       parlay: calculateParlay(updatedPicks, 10),
       lastScoringCheck: state.lastScoringCheck
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/admin/notify-bettor', async (req, res) => {
-  try {
-    const state = await getAppState();
-    const bettor = LEAGUE_MEMBERS.find(m => m.id === state.currentBettor);
-    if (!bettor) return res.status(400).json({ error: 'No designated bettor set.' });
-    if (!bettor.phone) return res.status(400).json({ error: 'Bettor has no phone number on file.' });
-
-    const parlay = calculateParlay(state.currentWeekPicks, 10);
-    const dkUrl = parlay.draftkingsParlayUrl;
-    const picksCount = state.currentWeekPicks.length;
-    const msg = `🏈 Undisputed Daddies — ${picksCount}/10 picks are in for Week ${state.currentWeek}. Time to place the bet, ${bettor.name}!\n\nOpen bet slip in DraftKings:\n${dkUrl}`;
-
-    const result = await sendSms(bettor.phone, msg);
-    if (result?.error_code) {
-      return res.status(500).json({ error: `Twilio error: ${result.message}` });
-    }
-    res.json({ success: true, message: `SMS sent to ${bettor.name} (${bettor.phone})` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -483,6 +431,39 @@ app.post('/api/admin/simulate-td', async (req, res) => {
       success: true,
       pick
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/track-open - Track when the app gets opened
+app.post('/api/track-open', async (req, res) => {
+  try {
+    const { device, referrer } = req.body || {};
+    const result = await trackAppOpen({ device, referrer });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/track-custom-parlay - Track when My Parlay is used to place a bet slip
+app.post('/api/track-custom-parlay', async (req, res) => {
+  try {
+    const { legsCount, totalOdds, wager, payout, players, device } = req.body || {};
+    const result = await trackCustomParlayUse({ legsCount, totalOdds, wager, payout, players, device });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/open-stats - View app open count and history
+app.get('/api/admin/open-stats', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 100;
+    const stats = await getAppOpenStats(limit);
+    res.json({ success: true, ...stats });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

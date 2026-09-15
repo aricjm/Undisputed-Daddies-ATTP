@@ -361,10 +361,39 @@
           <p>Delete active picks or simulate live touchdown states:</p>
           <div id="admin-td-sim-list"></div>
         </div>
+
+        <!-- App Open Analytics (Tracked in Redis) -->
+        <div class="admin-tools-box" style="margin-top: 14px;">
+          <div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span><i data-lucide="activity"></i> App Open Analytics (Redis)</span>
+            <button type="button" class="btn btn-secondary" id="refresh-opens-btn" style="font-size:10px; padding:3px 8px;">
+              <i data-lucide="rotate-cw" style="width:11px; height:11px;"></i> Refresh
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px; align-items:center;">
+            <div style="background:rgba(0,0,0,0.3); padding:8px 6px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); text-align:center;">
+              <span style="font-size:9px; font-weight:700; color:#94a3b8;">APP OPENS</span>
+              <div id="admin-opens-total" style="font-size:20px; font-weight:800; color:#22c55e;">--</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.3); padding:8px 6px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); text-align:center;">
+              <span style="font-size:9px; font-weight:700; color:#94a3b8;">OPENS TODAY</span>
+              <div id="admin-opens-today" style="font-size:20px; font-weight:800; color:#3b82f6;">--</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.3); padding:8px 6px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); text-align:center;">
+              <span style="font-size:9px; font-weight:700; color:#c084fc;">MY PARLAYS</span>
+              <div id="admin-custom-uses-total" style="font-size:20px; font-weight:800; color:#c084fc;">--</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <span style="font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:0.5px;">RECENT VISITS LOG</span>
+            <div id="admin-opens-recent" style="margin-top:5px; max-height:130px; overflow-y:auto; font-size:11px; color:#cbd5e1; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 8px;">
+              Loading open history...
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="cancel-bettor-btn">Cancel</button>
-        <button class="btn btn-warning" id="notify-bettor-btn" title="Send bet slip SMS to designated bettor">📱 Notify Bettor</button>
         <button class="btn btn-primary" id="save-bettor-btn">Save Bettor</button>
       </div>
     </div>

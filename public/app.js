@@ -78,7 +78,6 @@ const bettorModal = document.getElementById('bettor-modal');
 const bettorBanner = document.getElementById('bettor-banner');
 const closeBettorModal = document.getElementById('close-bettor-modal');
 const cancelBettorBtn = document.getElementById('cancel-bettor-btn');
-const notifyBettorBtn = document.getElementById('notify-bettor-btn');
 const saveBettorBtn = document.getElementById('save-bettor-btn');
 const adminBettorSelect = document.getElementById('admin-bettor-select');
 const adminBettorReason = document.getElementById('admin-bettor-reason');
@@ -108,6 +107,7 @@ const playerCountDisplay = document.getElementById('player-count-display');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+  trackAppOpen();
   setupNavigation();
   setupEventListeners();
   setupPullToRefresh();
@@ -530,15 +530,9 @@ function renderPlayerCards() {
       </div>
       <div class="player-card-right">
         <span class="player-att-odds">${player.odds}</span>
-        <div class="player-actions-group">
-          <button class="btn-custom-toggle ${customParlayPlayerIds.has(String(player.id)) ? 'added' : ''}" onclick="toggleCustomParlayPlayer('${player.id}')" title="${customParlayPlayerIds.has(String(player.id)) ? 'Remove from My Parlay' : 'Add to My Parlay'}">
-            <i data-lucide="${customParlayPlayerIds.has(String(player.id)) ? 'check' : 'bookmark-plus'}" style="width:12px; height:12px;"></i>
-            <span>${customParlayPlayerIds.has(String(player.id)) ? 'Added' : 'My Parlay'}</span>
-          </button>
-          <button class="btn-add-pick" onclick="openPickModalForPlayer('${player.id}')">
+        <button class="btn-add-pick" onclick="openPickModalForPlayer('${player.id}')">
             <i data-lucide="plus" style="width:13px; height:13px;"></i> Add Pick
-          </button>
-        </div>
+        </button>
       </div>
     `;
     playerCardList.appendChild(card);
@@ -834,6 +828,7 @@ function openAdminBettorModal() {
 
   // Simulator controls
   renderSimulatorTools();
+  loadAdminOpenStats();
 
   bettorModal.classList.add('open');
   refreshIcons();
@@ -903,6 +898,85 @@ async function simulatePickStatus(memberId, status) {
   } catch (err) {
     showToast('Simulation error');
   }
+}
+
+// Track App Open in Redis (tracked once per browser session)
+function trackAppOpen() {
+  const sessionKey = 'undisputed_session_tracked';
+  if (sessionStorage.getItem(sessionKey)) return;
+  sessionStorage.setItem(sessionKey, 'true');
+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const device = isMobile ? (/iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'iOS' : 'Android') : 'Desktop';
+
+  fetch('/api/track-open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device,
+      referrer: document.referrer || 'direct'
+    })
+  }).catch(() => { /* silent fallback */ });
+}
+
+// Load App Open Analytics for Admin Modal
+async function loadAdminOpenStats() {
+  const totalEl = document.getElementById('admin-opens-total');
+  const todayEl = document.getElementById('admin-opens-today');
+  const customTotalEl = document.getElementById('admin-custom-uses-total');
+  const recentEl = document.getElementById('admin-opens-recent');
+  if (!totalEl || !todayEl || !recentEl) return;
+
+  try {
+    const res = await fetch('/api/admin/open-stats?limit=30');
+    const data = await res.json();
+    if (!data.success) return;
+
+    totalEl.textContent = data.totalOpens || 0;
+    if (customTotalEl) customTotalEl.textContent = data.totalCustomUses || 0;
+
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
+    const todayCount = (data.dailyOpens && data.dailyOpens[todayStr]) ? data.dailyOpens[todayStr] : 0;
+    todayEl.textContent = todayCount;
+
+    if (!data.recentOpens || data.recentOpens.length === 0) {
+      recentEl.innerHTML = '<div style="color:#64748b; font-style:italic;">No visits logged yet.</div>';
+      return;
+    }
+
+    recentEl.innerHTML = data.recentOpens.map(item => {
+      const d = item.centralTime || (item.timestamp ? new Date(item.timestamp).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'Unknown');
+      return `<div style="padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between;">
+        <span>${d}</span>
+        <span style="color:#3b82f6; font-weight:700;">${item.device || 'App'}</span>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    recentEl.innerHTML = '<div style="color:#ef4444;">Failed to load visit stats.</div>';
+  }
+}
+
+// Track when My Parlay is used to place a bet slip on DraftKings
+function trackCustomParlayUseEvent() {
+  const selected = getSelectedCustomPlayers();
+  if (selected.length === 0) return;
+
+  const parlay = calculateCustomParlay(selected, customParlayWager);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const device = isMobile ? (/iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'iOS' : 'Android') : 'Desktop';
+
+  fetch('/api/track-custom-parlay', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      legsCount: selected.length,
+      totalOdds: parlay.totalOddsAmerican,
+      wager: customParlayWager,
+      payout: parlay.payout,
+      players: selected.map(p => p.name),
+      device
+    })
+  }).catch(() => { /* silent fallback */ });
 }
 
 // Generate formatted text representation of the current parlay for clipboard/sharing
@@ -1096,9 +1170,6 @@ function toggleCustomParlayPlayer(playerId) {
   saveCustomParlayState();
   renderCustomParlay();
   renderCustomPlayerPool();
-  if (currentTab === 'tab-players') {
-    applyFilters();
-  }
 }
 
 function clearCustomParlay() {
@@ -1108,9 +1179,6 @@ function clearCustomParlay() {
   saveCustomParlayState();
   renderCustomParlay();
   renderCustomPlayerPool();
-  if (currentTab === 'tab-players') {
-    applyFilters();
-  }
   showToast('Cleared custom parlay');
 }
 
@@ -1348,26 +1416,6 @@ async function saveBettorDesignation() {
   }
 }
 
-// Manually send bet slip SMS to designated bettor
-async function notifyBettor() {
-  try {
-    notifyBettorBtn.disabled = true;
-    notifyBettorBtn.textContent = 'Sending...';
-    const res = await fetch('/api/admin/notify-bettor', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`📱 ${data.message}`);
-    } else {
-      showToast(data.error || 'Failed to send SMS');
-    }
-  } catch (err) {
-    showToast('Network error sending SMS');
-  } finally {
-    notifyBettorBtn.disabled = false;
-    notifyBettorBtn.textContent = '📱 Notify Bettor';
-  }
-}
-
 // Save Manual NFL Week Override
 async function saveWeekOverride() {
   if (!adminWeekSelect) return;
@@ -1581,6 +1629,9 @@ function showToast(msg) {
 function setupEventListeners() {
   refreshScoresBtn.addEventListener('click', refreshScores);
 
+  const refreshOpensBtn = document.getElementById('refresh-opens-btn');
+  if (refreshOpensBtn) refreshOpensBtn.addEventListener('click', loadAdminOpenStats);
+
   // Search & Position filters
   playerSearch.addEventListener('input', () => {
     clearSearch.style.display = playerSearch.value ? 'block' : 'none';
@@ -1627,7 +1678,6 @@ function setupEventListeners() {
   closeBettorModal.addEventListener('click', () => bettorModal.classList.remove('open'));
   cancelBettorBtn.addEventListener('click', () => bettorModal.classList.remove('open'));
   saveBettorBtn.addEventListener('click', saveBettorDesignation);
-  if (notifyBettorBtn) notifyBettorBtn.addEventListener('click', notifyBettor);
   if (saveWeekBtn) saveWeekBtn.addEventListener('click', saveWeekOverride);
 
   // Profile Modal
@@ -1644,6 +1694,7 @@ function setupEventListeners() {
   if (clearCustomParlayBtn) clearCustomParlayBtn.addEventListener('click', clearCustomParlay);
   if (customShareBtn) customShareBtn.addEventListener('click', shareCustomParlaySlip);
   if (customCopyBtn) customCopyBtn.addEventListener('click', copyCustomParlaySlip);
+  if (customOpenDkBtn) customOpenDkBtn.addEventListener('click', trackCustomParlayUseEvent);
 
   if (customWagerPills) {
     customWagerPills.forEach(btn => {

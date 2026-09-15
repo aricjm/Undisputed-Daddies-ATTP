@@ -1291,15 +1291,7 @@ body {
   color: #000;
 }
 
-/* Secondary toggle button on player cards */
-.player-actions-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
+/* Secondary toggle button on My Parlay player cards */
 .btn-custom-toggle {
   background: rgba(139, 92, 246, 0.12);
   color: #c084fc;
