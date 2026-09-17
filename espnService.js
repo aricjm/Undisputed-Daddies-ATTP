@@ -1,28 +1,14 @@
 const { nflCache, redisClient, americanToDecimal, getAppState } = require('./cache');
 
-// Baseline fallback touchdown odds based on position and ranking
-// Used to realistically estimate ATT lines if ESPN/DraftKings feed does not have individual player prop lines published
-function estimateAttOdds(pos, index) {
-  const p = (pos || '').toUpperCase();
-  if (p === 'RB') {
-    if (index === 0) return -125; // RB1
-    if (index === 1) return +135; // RB2
-    return +275;
-  }
-  if (p === 'WR') {
-    if (index === 0) return +120; // WR1
-    if (index === 1) return +175; // WR2
-    if (index === 2) return +260; // WR3
-    return +400;
-  }
-  if (p === 'TE') {
-    if (index === 0) return +180; // TE1
-    return +350;
-  }
-  if (p === 'QB') {
-    return +320; // Rushing TD
-  }
-  return +300;
+// Helper to normalize player names for reliable matching against DraftKings odds data
+function normalizePlayerName(name) {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/['’.\-]/g, '')
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // Fetch scoreboard to get current week, season, games, and teams
@@ -96,11 +82,9 @@ async function fetchRealAttOdds(espnEvents) {
         previousCachedRedis = cachedRedis;
         const playerOddsMap = new Map();
         for (const [name, val] of Object.entries(cachedRedis)) {
-          if (typeof val === 'object' && val !== null) {
-            playerOddsMap.set(name, val);
-          } else if (typeof val === 'number') {
-            playerOddsMap.set(name, { price: val, outcomeParam: null });
-          }
+          const entry = typeof val === 'object' && val !== null ? val : { price: val, outcomeParam: null };
+          playerOddsMap.set(name, entry);
+          playerOddsMap.set(normalizePlayerName(name), entry);
         }
         if (playerOddsMap.size > 0) {
           console.log(`[OddsAPI] Loaded ${playerOddsMap.size} players with DraftKings links from Upstash Redis cache`);
@@ -269,7 +253,9 @@ async function fetchRealAttOdds(espnEvents) {
           if (match) outcomeParam = match[1];
         }
         if (name && price !== undefined) {
-          playerOddsMap.set(name, { price, outcomeParam });
+          const entry = { price, outcomeParam };
+          playerOddsMap.set(name, entry);
+          playerOddsMap.set(normalizePlayerName(name), entry);
         }
       }
     }
@@ -471,11 +457,16 @@ async function getWeekPlayers(targetWeek) {
 
       const playerFullName = athlete.fullName || athlete.displayName;
       const nameLower = playerFullName.toLowerCase().trim();
-      const estimatedOdds = estimateAttOdds(pos, effectiveIndex);
-      const realOddsEntry = realOddsMap.get(nameLower);
+      const realOddsEntry = realOddsMap.get(nameLower) || realOddsMap.get(normalizePlayerName(nameLower));
       const realOddsPrice = typeof realOddsEntry === 'object' && realOddsEntry !== null ? realOddsEntry.price : realOddsEntry;
+      
+      // Do not include player on the list if real odds were not returned for that player
+      if (realOddsPrice === undefined) {
+        continue;
+      }
+
       const outcomeParam = typeof realOddsEntry === 'object' && realOddsEntry !== null ? realOddsEntry.outcomeParam : null;
-      const oddsNum = realOddsPrice !== undefined ? realOddsPrice : estimatedOdds;
+      const oddsNum = realOddsPrice;
       const oddsDisplay = oddsNum > 0 ? `+${oddsNum}` : `${oddsNum}`;
 
       players.push({
@@ -505,7 +496,7 @@ async function getWeekPlayers(targetWeek) {
         odds: oddsDisplay,
         oddsValue: oddsNum,
         decimalOdds: americanToDecimal(oddsNum),
-        oddsSource: realOddsPrice !== undefined ? 'draftkings' : 'estimated'
+        oddsSource: 'draftkings'
       });
     }
   }
@@ -660,6 +651,7 @@ module.exports = {
   fetchCurrentScoreboard,
   fetchTeamRoster,
   fetchEventPropBets,
+  fetchRealAttOdds,
   getWeekPlayers,
   checkPlayerScoringStatus
 };
